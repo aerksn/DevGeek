@@ -24,8 +24,8 @@ jobs:
           $env:PORTPILOT_TEST_NODE = (Get-Command node).Source
           dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:RUNNER_TEMP\devgeek-tests" "$pwd\app\DevGeek.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Browser extension checks
-        run: node --test browser-extension/tests/extension.test.cjs
+      - name: OpenAI DOM reader checks
+        run: node --test tests/OpenAiBalanceReader/reader.test.cjs
       - name: WPF controls with synthetic data
         shell: pwsh
         run: |

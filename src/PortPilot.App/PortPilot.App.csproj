@@ -14,7 +14,7 @@
   <ItemGroup>
     <Resource Include="devgeek.ico" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
-    <EmbeddedResource Include="../../browser-extension/reader.js" LogicalName="PortPilot.BalanceReader.js" />
+    <EmbeddedResource Include="OpenAiBalanceReader.js" LogicalName="PortPilot.BalanceReader.js" />
     <EmbeddedResource Include="ClaudeUsageReader.js" LogicalName="PortPilot.ClaudeUsageReader.js" />
   </ItemGroup>
 </Project>

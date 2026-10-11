@@ -57,12 +57,10 @@ public partial class App : Application
             catch (Exception ex) { File.WriteAllText(e.Args[reportIndex + 1], ex.ToString()); Shutdown(1); }
             return;
         }
-        if (e.Args.FirstOrDefault() == BalanceNativeHost.ExtensionOrigin || e.Args.Length == 2 && e.Args[0] == "--balance-host-test")
+        // Retired browser invocations must not open a regular desktop window.
+        if (e.Args.FirstOrDefault()?.StartsWith("chrome-extension://", StringComparison.OrdinalIgnoreCase) == true)
         {
-            ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            try { Shutdown(await BalanceNativeHost.RunAsync(Console.OpenStandardInput(), Console.OpenStandardOutput(), e.Args[0] == "--balance-host-test" ? e.Args[1] : SettingsStore.DefaultDirectory)); }
-            catch { Shutdown(1); }
-            return;
+            Shutdown(1); return;
         }
         if (e.Args.Length == 3 && e.Args[0] == "--keep-launch")
         {

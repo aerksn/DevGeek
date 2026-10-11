@@ -50,7 +50,7 @@ public sealed partial class BillingBrowser : IDisposable
         var layout = new DockPanel();
         var top = new DockPanel { Height = 48, Margin = new Thickness(10, 0, 10, 0), LastChildFill = true };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        Add("Till Billing", () => controller?.CoreWebView2.Navigate(BalanceNativeHost.BillingUrl));
+        Add("Till Billing", () => controller?.CoreWebView2.Navigate(BillingNavigation.OverviewUrl));
         Add("Uppdatera saldo", () => { _ = RefreshAsync(manual: true); });
         Add("Dölj", () => window.Hide());
         DockPanel.SetDock(buttons, Dock.Right); top.Children.Add(buttons);
@@ -121,7 +121,7 @@ public sealed partial class BillingBrowser : IDisposable
                 if (disposed) return;
                 navigating = false;
                 if (!args.IsSuccess) { Emit(new(1, "unreadable")); error("Billing kunde inte laddas. Öppna Billing via OpenAI-loggan och försök igen."); return; }
-                if (!fixture && BillingNavigation.IsPlatformHome(core.Source)) { core.Navigate(BalanceNativeHost.BillingUrl); return; }
+                if (!fixture && BillingNavigation.IsPlatformHome(core.Source)) { core.Navigate(BillingNavigation.OverviewUrl); return; }
                 await ObserveAsync();
             };
             core.NewWindowRequested += (_, args) =>
@@ -134,7 +134,7 @@ public sealed partial class BillingBrowser : IDisposable
             core.ProcessFailed += (_, _) => { if (!disposed) { Emit(new(1, "unreadable")); error("Billing-sessionen avbröts. Koppla från och anslut igen via OpenAI-loggan."); } };
             if (!fixture)
             {
-                core.Navigate(BalanceNativeHost.BillingUrl);
+                core.Navigate(BillingNavigation.OverviewUrl);
                 refreshTimer.Start(); observeTimer.Start();
             }
             error(sessionError);
@@ -169,7 +169,7 @@ public sealed partial class BillingBrowser : IDisposable
                 }
                 core.Reload();
             }
-            else if (manual) core.Navigate(BalanceNativeHost.BillingUrl);
+            else if (manual) core.Navigate(BillingNavigation.OverviewUrl);
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or TimeoutException)
         { if (!disposed) { Emit(new(1, "unreadable")); error("Billing kunde inte uppdateras. Öppna sessionen via OpenAI-loggan och försök igen."); } }
@@ -294,7 +294,7 @@ public sealed partial class BillingBrowser : IDisposable
             {
                 browser.fixtureHtml = html;
                 if (automaticReload) await browser.RefreshAsync(manual: false);
-                else browser.controller.CoreWebView2.Navigate(BalanceNativeHost.BillingUrl);
+                else browser.controller.CoreWebView2.Navigate(BillingNavigation.OverviewUrl);
                 Check(await complete.Task.WaitAsync(TimeSpan.FromSeconds(20)), "Fixture navigation succeeds");
             }
             finally { browser.controller.CoreWebView2.NavigationCompleted -= Done; }

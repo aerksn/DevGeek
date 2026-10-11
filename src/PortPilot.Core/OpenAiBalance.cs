@@ -36,8 +36,8 @@ public sealed record BalanceSnapshot(decimal? Amount, DateTime? ObservedUtc, Dat
         var latest = ObservedUtc is { } time ? $"Senast avläst {time.ToLocalTime():yyyy-MM-dd HH:mm:ss}.\n" : "Inget saldo har lästs av ännu.\n";
         var state = State switch
         {
-            "login_required" => "Logga in på OpenAI Billing i den anslutna webbläsaren.",
-            "page_closed" => "Billing-fliken är stängd. Anslut en flik igen i tillägget.",
+            "login_required" => "Logga in på OpenAI Billing i DevGeeks eget fönster.",
+            "page_closed" => "Billing-sessionen är stängd. Öppna Billing via OpenAI-loggan igen.",
             "paused" => "Billing-fliken har lämnat översikten. Öppna översikten igen.",
             "unreadable" => "Saldofältet kunde inte läsas. Öppna Billing och kontrollera sidan.",
             _ => IsFresh(now) ? "USD-saldo från fältet API credit balance i Billing." : "Avläsningen är äldre. Öppna Billing för en ny avläsning."
@@ -68,7 +68,7 @@ public sealed class BalanceStore(string directory)
     public BalanceSnapshot Apply(BalanceMessage message, DateTime now)
     {
         if (now.Kind != DateTimeKind.Utc) throw new InvalidDataException("Avläsningstiden måste vara UTC.");
-        // Validate even when called directly rather than through the native message parser.
+        // Validate both DOM observations and direct store writes.
         message = BalanceMessage.Parse(JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions));
         var old = Read();
         var snapshot = message.State == "ok" ? new BalanceSnapshot(message.DollarAmount, now, now, "ok")

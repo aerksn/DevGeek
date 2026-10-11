@@ -54,7 +54,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public string BalanceLabel => AccountBalanceLabel + (preview ? " · exempel" : "");
     public string BalanceHint => preview ? "Designförhandsvisning med exempeldata. Detta är inte ditt kontos saldo. Öppna app/DevGeek.exe för din sparade saldokoppling. Klicka på loggan eller beloppet för information."
         : balanceError ?? (!settings.OpenAiBalanceEnabled ? "Öppna Billing via OpenAI-loggan och logga in för att se ditt USD-saldo.\nDevGeek kan läsa av i bakgrunden medan Chrome är stängt. Dra i den tomma ytan bredvid saldot för att flytta fönstret."
-        : (balance?.Hint(DateTime.UtcNow) ?? "Kopplingen är aktiverad. Öppna Billing via OpenAI-loggan för en avläsning.") + (settings.OpenAiBackgroundEnabled ? "\nDevGeeks egen Billing-session. Öppna den via OpenAI-loggan om inloggningen behöver förnyas." : "\nWebbläsartillägg: Billing-fliken behöver vara öppen."));
+        : (balance?.Hint(DateTime.UtcNow) ?? "Kopplingen är aktiverad. Öppna Billing via OpenAI-loggan för en avläsning.") + "\nDevGeeks egen Billing-session. Öppna den via OpenAI-loggan om inloggningen behöver förnyas.");
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
 
@@ -78,14 +78,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await RefreshPortsAsync();
             if (DateTime.UtcNow - dockerChecked > TimeSpan.FromSeconds(10)) _ = RefreshDockerAsync();
         };
-        Loaded += async (_, _) => { if (!preview) { RefreshBalance(); _ = RefreshAssistantUsageAsync(); if (settings.OpenAiBalanceEnabled && settings.OpenAiBackgroundEnabled) _ = StartBackgroundBalanceAsync(); RestoreLaunches(); timer.Start(); _ = RefreshDockerAsync(); await RefreshPortsAsync(); } };
+        Loaded += async (_, _) => { if (!preview) { RefreshBalance(); _ = RefreshAssistantUsageAsync(); if (settings.OpenAiBalanceEnabled) _ = StartBackgroundBalanceAsync(); RestoreLaunches(); timer.Start(); _ = RefreshDockerAsync(); await RefreshPortsAsync(); } };
         Closing += OnClosing;
         Closed += (_, _) => { closed = true; timer.Stop(); telemetryStop.Cancel(); serviceProbe.Dispose(); billingBrowser?.Dispose(); claudeBrowser?.Dispose(); foreach (var entry in QuickStarts) entry.Session?.Dispose(); };
     }
 
     private void RefreshBalance()
     {
-        try { balance = settings.OpenAiBalanceEnabled ? balanceStore.Read() : null; if (!settings.OpenAiBackgroundEnabled) balanceError = null; }
+        try { balance = settings.OpenAiBalanceEnabled ? balanceStore.Read() : null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
             if (balance is not null) balance = balance with { State = "unreadable" };
@@ -93,37 +93,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
     }
-    private bool ConfigureBalance(bool enabled)
+    private bool DisconnectBalance()
     {
         if (preview) return false;
         var previous = settings.OpenAiBalanceEnabled;
-        var previousBackground = settings.OpenAiBackgroundEnabled;
         var persisted = false;
         try
         {
-            var installer = new BrowserBridgeInstaller(store.DirectoryPath);
-            if (enabled) installer.Register(Environment.ProcessPath ?? throw new IOException("Appens sökväg saknas."));
-            // Persist disabling before removing registration so an already running host stops accepting data.
-            settings.OpenAiBalanceEnabled = enabled;
-            settings.OpenAiBackgroundEnabled = false;
-            if (!Save()) { settings.OpenAiBalanceEnabled = previous; settings.OpenAiBackgroundEnabled = previousBackground; return false; }
+            settings.OpenAiBalanceEnabled = false;
+            if (!Save()) { settings.OpenAiBalanceEnabled = previous; return false; }
             persisted = true;
             billingBrowser?.ForgetSavedSession();
             new BillingSessionStore(store.DirectoryPath).Clear();
             billingBrowser?.Dispose(); billingBrowser = null; balanceError = null;
-            if (!enabled) installer.Unregister();
             RefreshBalance(); return true;
         }
-        catch (Exception ex) { if (!persisted) { settings.OpenAiBalanceEnabled = previous; settings.OpenAiBackgroundEnabled = previousBackground; } RefreshBalance(); Error(ex); return false; }
+        catch (Exception ex) { if (!persisted) settings.OpenAiBalanceEnabled = previous; RefreshBalance(); Error(ex); return false; }
     }
     private async Task StartBackgroundBalanceAsync()
     {
-        if (preview || closed || !settings.OpenAiBalanceEnabled || !settings.OpenAiBackgroundEnabled) return;
+        if (preview || closed || !settings.OpenAiBalanceEnabled) return;
         try
         {
             billingBrowser ??= new(store.DirectoryPath, message =>
             {
-                if (closed || !settings.OpenAiBackgroundEnabled || !settings.OpenAiBalanceEnabled) return false;
+                if (closed || !settings.OpenAiBalanceEnabled) return false;
                 try { balanceStore.Apply(message, DateTime.UtcNow); RefreshBalance(); return true; }
                 catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera DevGeeks datamapp."; Changed(nameof(BalanceHint)); Changed(nameof(BalanceLabel)); return false; }
             }, message => { if (closed) return; balanceError = message; Changed(nameof(BalanceHint)); Changed(nameof(BalanceLabel)); });
@@ -134,10 +128,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async Task OpenBackgroundBillingAsync()
     {
         if (preview) return;
-        var previous = settings.OpenAiBalanceEnabled; var previousBackground = settings.OpenAiBackgroundEnabled;
-        settings.OpenAiBalanceEnabled = settings.OpenAiBackgroundEnabled = true;
-        if (!Save()) { settings.OpenAiBalanceEnabled = previous; settings.OpenAiBackgroundEnabled = previousBackground; return; }
-        if (!previousBackground)
+        var previous = settings.OpenAiBalanceEnabled;
+        settings.OpenAiBalanceEnabled = true;
+        if (!Save()) { settings.OpenAiBalanceEnabled = previous; return; }
+        if (!previous)
         {
             try { balanceStore.Apply(new(1, "unreadable"), DateTime.UtcNow); }
             catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera DevGeeks datamapp."; }
@@ -149,11 +143,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     private async Task RefreshBackgroundBillingAsync()
     {
-        if (!settings.OpenAiBackgroundEnabled) { await OpenBackgroundBillingAsync(); return; }
+        if (!settings.OpenAiBalanceEnabled) { await OpenBackgroundBillingAsync(); return; }
         await StartBackgroundBalanceAsync(); if (billingBrowser is not null) await billingBrowser.RefreshAsync(manual: true);
     }
-    public BalanceDialog CreateBalanceDialog() => new(OpenBackgroundBillingAsync, RefreshBackgroundBillingAsync, () => ConfigureBalance(false),
-        () => new ExtensionBalanceDialog(ConfigureBalance, () => BalanceHint, preview) { Owner = this }.ShowDialog(), () => BalanceHint, preview) { Owner = this };
+    public BalanceDialog CreateBalanceDialog() => new(OpenBackgroundBillingAsync, RefreshBackgroundBillingAsync, DisconnectBalance, () => BalanceHint, preview) { Owner = this };
     private void Balance_Click(object sender, RoutedEventArgs e) => CreateBalanceDialog().ShowDialog();
 
     private void RestoreLaunches()
@@ -451,7 +444,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public void LoadPreview(bool empty)
     {
         settings.OpenAiBalanceEnabled = true;
-        settings.OpenAiBackgroundEnabled = true;
         balance = new(24.50m, DateTime.UtcNow, DateTime.UtcNow, "ok");
         Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
         Status = "Förhandsvisning · Exempeldata, inga kommandon körs";

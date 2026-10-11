@@ -10,12 +10,12 @@ internal static class AppearanceTests
             var store = new SettingsStore(Path.Combine(root, "appearance-settings"));
             foreach (var mode in Enum.GetValues<BackgroundMode>())
             {
-                var settings = new Settings { Topmost = true, Compact = true, OpenAiBalanceEnabled = true, OpenAiBackgroundEnabled = true, ClaudeUsageEnabled = true,
+                var settings = new Settings { Topmost = true, Compact = true, OpenAiBalanceEnabled = true, ClaudeUsageEnabled = true,
                     Appearance = new() { Mode = mode, Color = "#1468AB", Transparency = 91, ShowBorder = false },
                     QuickStarts = [new() { Name = "Projekt", Directory = root, Command = "echo sample" }] };
                 store.Save(settings); var restored = new SettingsStore(store.DirectoryPath).Load();
                 check(restored.Appearance == settings.Appearance && restored.Topmost && restored.Compact && restored.OpenAiBalanceEnabled
-                    && restored.OpenAiBackgroundEnabled && restored.ClaudeUsageEnabled && restored.QuickStarts.Single().Command == "echo sample", "A saved appearance lost data after restart.");
+                    && restored.ClaudeUsageEnabled && restored.QuickStarts.Single().Command == "echo sample", "A saved appearance lost data after restart.");
             }
             return Task.CompletedTask;
         });

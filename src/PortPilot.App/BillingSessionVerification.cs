@@ -27,7 +27,7 @@ public sealed partial class BillingBrowser
             Add("portpilot_fixture_path", "synthetic-path-only", "platform.openai.com", "/settings", CoreWebView2CookieSameSiteKind.None);
             Add("portpilot_fixture_persistent", "synthetic-persistent-only", "platform.openai.com", "/", CoreWebView2CookieSameSiteKind.Lax, persistent: true);
             Add("portpilot_fixture_unrelated", "synthetic-unrelated-only", "example.com", "/", CoreWebView2CookieSameSiteKind.Lax);
-            await Load(BalanceNativeHost.BillingUrl);
+            await Load(BillingNavigation.OverviewUrl);
             await core.ExecuteScriptAsync("localStorage.setItem('portpilot_fixture_storage','durable');");
             await browser.FlushSessionAsync();
             Check(messages.LastOrDefault() is { State: "ok" }, "A successful Billing reading checkpoints the session");
@@ -68,7 +68,7 @@ public sealed partial class BillingBrowser
                 var encrypted = File.ReadAllBytes(validation.FilePath); encrypted[^1] ^= 0x80; File.WriteAllBytes(validation.FilePath, encrypted);
                 Check(Rejects(() => validation.Read(DateTime.UtcNow)) && File.ReadAllBytes(validation.FilePath).SequenceEqual(encrypted), "Damaged encrypted checkpoints fail safely and remain intact");
             }
-            await Load(BalanceNativeHost.BillingUrl);
+            await Load(BillingNavigation.OverviewUrl);
             Check(await core.ExecuteScriptAsync("localStorage.getItem('portpilot_fixture_storage') === 'durable'") == "true", "Local browser storage survives the same app restart");
             Check(await core.ExecuteScriptAsync("!document.cookie.includes('portpilot_fixture_session')") == "true", "HttpOnly session data stays unavailable to page scripts");
         }

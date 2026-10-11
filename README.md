@@ -83,23 +83,7 @@ När sidan återgår till inloggning raderas den sparade sessionen. **Koppla fr�
 
 Microsoft Edge WebView2 Runtime krävs. Den finns redan på många Windows-datorer; om den saknas visar appen ett fel och portfunktionerna fortsätter fungera. Runtime kan hämtas från [Microsofts officiella sida](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). SDK-licens och NOTICE följer med under `licenses`.
 
-Bakgrundsläsning, dold omhämtning och återställning efter fullständigt avslutad app och WebView2-process har verifierats med egna lokala testdata. Användaren har också bekräftat att inloggningen behålls efter omstart. OpenAI eller din inloggningsleverantör kan kräva ytterligare verifiering eller neka en inbyggd webbläsare; öppna då Billing-fönstret igen. Webbläsartillägget finns kvar som alternativ.
-
-### Alternativ: webbläsartillägg
-
-Välj **Använd webbläsartillägg i stället** i $-dialogen. Detta alternativ kräver en öppen Billing-flik i din vanliga webbläsare:
-
-1. Välj **Registrera koppling** i DevGeek. Detta registrerar en lokal Native Messaging-koppling för din Windows-användare i Chrome, Edge och Brave. Inga administratörsrättigheter behövs. Behåll appen på samma plats; registrera om kopplingen om du flyttar den.
-2. Öppna **brave://extensions**, **chrome://extensions** eller **edge://extensions** i din vanliga webbläsare. Aktivera utvecklarläge och välj **Ladda okomprimerat / Load unpacked**. Välj paketets **browser-extension**-mapp. Knappen **Öppna tilläggsmappen** visar var den finns.
-3. Öppna [OpenAI Billing Overview](https://platform.openai.com/settings/organization/billing/overview) i samma webbläsare och logga in. Välj rätt organisation, öppna tilläggets meny och välj **Anslut denna flik**. En redan öppen Billing-flik kan behöva laddas om efter att tillägget installerats.
-
-Tillägget läser det synliga fältet **API credit balance**, inte andra dollarsiffror på sidan. Endast normaliserat USD-belopp och avläsningsstatus skickas lokalt till DevGeek. Ingen API-nyckel behövs. Inga cookies, lösenord eller inloggningstoken läses eller kopieras. Inloggning i Codex-webbläsaren delas inte med Brave, Chrome eller Edge.
-
-Låt den valda Billing-fliken vara öppen. Med automatisk uppdatering aktiverad uppdateras en **inaktiv** flik var femte minut; en aktiv flik, ett öppet dialogfönster eller en fokuserad inmatning avbryts inte. Checkboxen och **Läs av nu** finns i tillägget. **Läs av nu** läser den synliga sidan; ladda om Billing om du vill hämta ett nyare saldo från OpenAI. DevGeek läser det lokala resultatet varannan sekund. Senaste avläsningstid visas när du håller musen över saldot.
-
-Efter 12 minuter utan ny avläsning, eller när sidan stängs/inte kan läsas, behålls det senaste beloppet med **äldre**. Detta är sidans senast avlästa kreditbelopp och ingen prognos. Om OpenAI ändrar sidans struktur eller inloggningen upphör behövs en ny avläsning eller uppdatering av tillägget. Efter omstart av webbläsaren återansluts en enda öppnad Billing-översikt; om flera finns behöver du välja fliken igen.
-
-**Koppla från** i appen stänger av mottagningen och tar bort endast DevGeeks egen hostregistrering. **Pausa** i tillägget pausar den valda fliken. Tillägget kan avinstalleras på webbläsarens tilläggssida. Det senaste saldot och tidpunkten sparas lokalt i `%LOCALAPPDATA%\PortPilot\openai-balance.json`; en pausad koppling raderar inte historiken. Ingen ny TCP-port, Windows-tjänst eller autostart skapas.
+Bakgrundsläsning, dold omhämtning och återställning efter fullständigt avslutad app och WebView2-process verifieras med egna lokala testdata. OpenAI eller din inloggningsleverantör kan kräva ytterligare verifiering eller neka en inbyggd webbläsare; öppna då Billing-fönstret igen.
 
 ## Bakgrund och färg
 
@@ -142,7 +126,7 @@ dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- 
 
 Testprogrammet skapar egna tillfälliga TCP-servrar. Det testar riktiga IPv4/IPv6-bindningar, PID-skydd, stopp och omstart på samma port, återanslutning efter att den startande processen avslutats, dubbelstart, kommandologgar, arbetsmappar, inställningar samt Docker-JSON och filtrering av fjärranslutningar. Projektupptäckten kontrolleras med paketnamn, undermappar, beroendepaket, felaktiga metadata och separata processägare. Docker-omstart kontrolleras med en separat test-CLI, inklusive argument, endpoint, kontext och felhantering. Det stoppar inga befintliga användarservrar eller containrar.
 
-För att även testa den paketerade appens hjälpprocess, ge testprogrammet två argument: en absolut resultatmapp och den absoluta sökvägen till `app\DevGeek.exe`. Vanlig körning omfattar 51 tester, med den paketerade exe-filen 53. Sätt miljövariabeln `PORTPILOT_TEST_NODE` till den absoluta sökvägen till `node.exe` för ytterligare ett integrationstest: en egen Node-server i en projektmapp med mellanslag upptäcks via sin verkliga arbetsmapp, får rätt projektnamn och stoppas med bibehållen processidentitet. Resurstesterna kontrollerar verkligt processminne, CPU över ett tidsintervall och skydd mot återanvända PID. En separat test-CLI kontrollerar Docker stats-argument och minnesenheter. Lokala HTTP/TCP-fixturer kontrollerar svarstid, HEAD/GET, felkoder, partiellt svarande grupper, timeout, omdirigeringar och avbrytning. Utvecklingsbyggen som inte är fristående använder sin vanliga exe som hjälpprogram; stoppa snabbstarterna innan dessa byggfiler ersätts.
+För att även testa den paketerade appens hjälpprocess, ge testprogrammet två argument: en absolut resultatmapp och den absoluta sökvägen till `app\DevGeek.exe`. Vanlig körning omfattar 49 tester, med den paketerade exe-filen 50. Sätt miljövariabeln `PORTPILOT_TEST_NODE` till den absoluta sökvägen till `node.exe` för ytterligare ett integrationstest: en egen Node-server i en projektmapp med mellanslag upptäcks via sin verkliga arbetsmapp, får rätt projektnamn och stoppas med bibehållen processidentitet. Resurstesterna kontrollerar verkligt processminne, CPU över ett tidsintervall och skydd mot återanvända PID. En separat test-CLI kontrollerar Docker stats-argument och minnesenheter. Lokala HTTP/TCP-fixturer kontrollerar svarstid, HEAD/GET, felkoder, partiellt svarande grupper, timeout, omdirigeringar och avbrytning. Utvecklingsbyggen som inte är fristående använder sin vanliga exe som hjälpprogram; stoppa snabbstarterna innan dessa byggfiler ersätts.
 
 UI-kontroller och en rendering med tydligt märkt exempeldata kan köras utan att läsa användarens inställningar:
 
@@ -162,21 +146,20 @@ Projektnavigeringen testas genom egna processer som registrerar mottagna argumen
 
 PNG-förhandsvisningarna visar reservytan, eftersom WPF:s bildrendering inte kan fånga DWM:s bakgrundsoskärpa. Granska verkligt glas utan att påverka dina miljöer med `--preview --compact --group-example --glass --stay-open`. `--material-report material.txt` sparar Windows-version, DWM-materialets och ramritningens återlästa värden, fönstrets aktivering och transparensstatus. Förhandsvisningen använder exempeldata och stängs med krysset.
 
-Tilläggets sju JavaScript-tester körs med Node: `node --test browser-extension/tests/extension.test.cjs`. De kontrollerar beloppsformat, DOM-kort, varningen med $0, tvetydiga/oläsbara fält, begränsade behörigheter, meddelandeavsändare och bakgrundsuppdatering. Kärntesterna kontrollerar även lokalt saldotillstånd, fel och färskhet samt native-protokollet genom den paketerade WPF-exe-filen.
+Saldoläsarens fyra JavaScript-tester körs med Node: `node --test tests/OpenAiBalanceReader/reader.test.cjs`. De kontrollerar beloppsformat, rätt Billing-sida, det exakta saldokortet, varningar med $0 och tvetydiga eller oläsbara fält. Kärntesterna kontrollerar även lokal saldolagring, fel, färskhet och kompatibilitet med äldre inställningar.
 
 ## Struktur
 
 - `src/PortPilot.Core`: portavläsning, Docker, processgrupper, resursmätning, tjänstkontroller och inställningar.
 - `src/PortPilot.App`: WPF-fönster, dialoger och loggvisning.
 - `tests/PortPilot.Tests`: körbara integrationstester utan externa testpaket.
-- `browser-extension`: lokal MV3-extension för OpenAI Billing med egna JavaScript-tester.
-- `VERIFIERING.txt`: testresultat och kända verifieringsgränser för den levererade versionen.
+- `tests/OpenAiBalanceReader`: tester för appens inbäddade DOM-läsare.
 
 Tekniska referenser: [Windows TCP-tabeller](https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getextendedtcptable), [Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects), [Docker container ls](https://docs.docker.com/reference/cli/docker/container/ls/), [Docker inspect](https://docs.docker.com/reference/cli/docker/inspect/), [Docker restart](https://docs.docker.com/reference/cli/docker/container/restart/), [Windows Acrylic](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic), [DWM-systemmaterial](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwm_systembackdrop_type).
 
 Resursmätning: [Process.WorkingSet64](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.workingset64), [Windows Process-implementation](https://github.com/dotnet/runtime/blob/main/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.Windows.cs), [Docker stats](https://docs.docker.com/reference/cli/docker/container/stats/).
 
-Webbläsarkoppling: [Chrome Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging) och [Edge Native Messaging](https://learn.microsoft.com/en-us/microsoft-edge/extensions/developer-guide/native-messaging).
+
 
 Den dolda WebView2-sessionen kan integrationstestas på lokala testdata med `app\DevGeek.exe --verify-background --test-root C:\temp\DevGeek-test-profile --report C:\temp\DevGeek-background-report.txt`. Testet kontaktar inget OpenAI-konto och behöver ingen inloggning. Det testar riktig dold DOM-avläsning, automatisk omhämtning, avvisning av varningar och återförsök vid lagringsfel.
 

@@ -73,7 +73,7 @@ internal sealed class BillingSessionStore(string directory, bool claude = false)
     internal static async Task<List<CoreWebView2Cookie>> GetOwnCookiesAsync(CoreWebView2CookieManager manager)
     {
         var cookies = new List<CoreWebView2Cookie>();
-        foreach (var url in new[] { "https://platform.openai.com/", PortPilot.Core.BalanceNativeHost.BillingUrl, "https://auth.openai.com/log-in", "https://auth0.openai.com/authorize" })
+        foreach (var url in new[] { "https://platform.openai.com/", PortPilot.Core.BillingNavigation.OverviewUrl, "https://auth.openai.com/log-in", "https://auth0.openai.com/authorize" })
             cookies.AddRange(await manager.GetCookiesAsync(url));
         return cookies.Where(cookie => IsAllowedDomain(cookie.Domain)).DistinctBy(cookie => (cookie.Name, cookie.Domain, cookie.Path)).ToList();
     }

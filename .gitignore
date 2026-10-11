@@ -15,6 +15,8 @@ test-results/
 *.key
 settings.json
 settings.json.bak
+openai-balance.json
+browser-bridge/
 *-session.bin
 *-usage.json
 **/*-profile/

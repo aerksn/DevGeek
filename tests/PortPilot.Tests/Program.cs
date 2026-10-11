@@ -539,7 +539,7 @@ await Test("Packaged desktop host preserves the job, releases after stop and lea
     finally { if (session is not null) { if (session.IsRunning) await session.StopAsync(); session.Dispose(); } }
 });
 
-await BalanceTests.Run(root, Test, Check, Throws, args.Length > 1 ? args[1] : null);
+await BalanceTests.Run(root, Test, Check, Throws);
 await TelemetryTests.Run(root, Test, Check);
 await ProjectOpenerTests.Run(root, Test, Check);
 await AssistantUsageTests.Run(root, Test, Check);

@@ -58,7 +58,6 @@ public sealed class Settings
     public bool Topmost { get; set; }
     public bool Compact { get; set; } = true;
     public bool OpenAiBalanceEnabled { get; set; }
-    public bool OpenAiBackgroundEnabled { get; set; }
     public bool ClaudeUsageEnabled { get; set; }
     public AppearanceSettings Appearance { get; set; } = new();
     public List<QuickStart> QuickStarts { get; set; } = [];
