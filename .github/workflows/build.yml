@@ -1,0 +1,39 @@
+name: Windows build and checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build portable application
+        shell: pwsh
+        run: ./build.ps1
+      - name: Core and packaged application checks
+        shell: pwsh
+        run: |
+          $env:PORTPILOT_TEST_NODE = (Get-Command node).Source
+          dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:RUNNER_TEMP\devgeek-tests" "$pwd\app\DevGeek.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Browser extension checks
+        run: node --test browser-extension/tests/extension.test.cjs
+      - name: WPF controls with synthetic data
+        shell: pwsh
+        run: |
+          $run = Start-Process -FilePath ./app/DevGeek.exe -ArgumentList '--preview','--verify-ui','--report',"$env:RUNNER_TEMP\ui-report.txt",'--output',"$env:RUNNER_TEMP\preview.png" -WindowStyle Hidden -PassThru
+          if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'UI check timeout' }
+          Get-Content "$env:RUNNER_TEMP\ui-report.txt"
+          if ($run.ExitCode -ne 0) { exit $run.ExitCode }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DevGeek-Windows-x64
+          path: app/DevGeek.exe

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="DevGeek: glasses and terminal prompt">
+  <defs><linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#54407E"/><stop offset="1" stop-color="#26293D"/></linearGradient></defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#tile)"/>
+  <g fill="none" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="47" y="81" width="60" height="44" rx="13" stroke="#CFDDFB"/>
+    <rect x="149" y="81" width="60" height="44" rx="13" stroke="#F3C2D7"/>
+    <path d="M112 94H144" stroke="#F5F2FC"/>
+    <path d="M30 82L44 88" stroke="#CFDDFB"/>
+    <path d="M212 88L226 82" stroke="#F3C2D7"/>
+    <path d="M83 163L102 181L83 199" stroke="#CFDDFB" stroke-width="9"/>
+    <path d="M121 199H172" stroke="#F3C2D7" stroke-width="9"/>
+  </g>
+</svg>

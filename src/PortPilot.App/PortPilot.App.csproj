@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>DevGeek</AssemblyName>
+    <RootNamespace>PortPilot.App</RootNamespace>
+    <Product>DevGeek</Product>
+    <AssemblyTitle>DevGeek</AssemblyTitle>
+    <Description>Local development monitor and launcher</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>devgeek.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../PortPilot.Core/PortPilot.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Resource Include="devgeek.ico" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <EmbeddedResource Include="../../browser-extension/reader.js" LogicalName="PortPilot.BalanceReader.js" />
+    <EmbeddedResource Include="ClaudeUsageReader.js" LogicalName="PortPilot.ClaudeUsageReader.js" />
+  </ItemGroup>
+</Project>

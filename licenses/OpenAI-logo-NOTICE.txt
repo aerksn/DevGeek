@@ -1,0 +1,9 @@
+The OpenAI Blossom is used solely to identify the OpenAI balance feature.
+OpenAI trademarks belong to OpenAI. DevGeek does not imply sponsorship or endorsement.
+Brand guidance: https://openai.com/brand/
+
+Vector source: Simple Icons v14.0.0, openai.svg (24 x 24), rendered unchanged in white.
+https://github.com/simple-icons/simple-icons/blob/14.0.0/icons/openai.svg
+Simple Icons artwork is distributed under CC0-1.0:
+https://github.com/simple-icons/simple-icons/blob/14.0.0/LICENSE.md
+Trademark rights are separate from that license.
