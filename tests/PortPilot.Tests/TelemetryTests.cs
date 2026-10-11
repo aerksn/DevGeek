@@ -57,8 +57,11 @@ internal static class TelemetryTests
             var record = Path.Combine(directory, "arguments.json");
             var variables = new[] { "PATH", "DOCKER_CONTEXT", "PORTPILOT_DOCKER_FIXTURE", "PORTPILOT_DOCKER_FAILURE", "PORTPILOT_DOCKER_OUTPUT" };
             var saved = variables.ToDictionary(variable => variable, Environment.GetEnvironmentVariable);
+            var previousDirectory = Environment.CurrentDirectory;
             try
             {
+                // The current directory wins over an installed System32 Docker CLI.
+                Environment.CurrentDirectory = directory;
                 Environment.SetEnvironmentVariable("PATH", directory + Path.PathSeparator + saved["PATH"]);
                 Environment.SetEnvironmentVariable("DOCKER_CONTEXT", "must-not-use");
                 Environment.SetEnvironmentVariable("PORTPILOT_DOCKER_FIXTURE", record);
@@ -72,7 +75,7 @@ internal static class TelemetryTests
                     && document.RootElement.GetProperty("Context").ValueKind == JsonValueKind.Null, "Stats used the ambient Docker context or wrong container IDs.");
                 check(values.Count == 1 && values[PortGroup.OwnerKey(entry)].MemoryBytes == 20971520 && values[PortGroup.OwnerKey(entry)].StartedUtc == entry.StartedUtc, "Stats were duplicated or lost the container's runtime.");
             }
-            finally { foreach (var variable in variables) Environment.SetEnvironmentVariable(variable, saved[variable]); }
+            finally { Environment.CurrentDirectory = previousDirectory; foreach (var variable in variables) Environment.SetEnvironmentVariable(variable, saved[variable]); }
         });
         await test("HTTP probes read response headers and HEAD-only status with measured latency", async () =>
         {

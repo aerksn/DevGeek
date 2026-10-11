@@ -481,8 +481,12 @@ await Test("Docker restart pins the scanned pipe and container, ignores ambient 
     var record = Path.Combine(directory, "arguments.json");
     var variables = new[] { "PATH", "DOCKER_CONTEXT", "PORTPILOT_DOCKER_FIXTURE", "PORTPILOT_DOCKER_FAILURE" };
     var saved = variables.ToDictionary(v => v, Environment.GetEnvironmentVariable);
+    var previousDirectory = Environment.CurrentDirectory;
     try
     {
+        // Windows searches the working directory before System32 and PATH.
+        // Keep an installed Docker CLI out of this isolated fixture boundary.
+        Environment.CurrentDirectory = directory;
         Environment.SetEnvironmentVariable("PATH", directory + Path.PathSeparator + saved["PATH"]);
         Environment.SetEnvironmentVariable("DOCKER_CONTEXT", "must-not-use");
         Environment.SetEnvironmentVariable("PORTPILOT_DOCKER_FIXTURE", record);
@@ -498,7 +502,7 @@ await Test("Docker restart pins the scanned pipe and container, ignores ambient 
         try { await DockerService.RestartAsync(entry); } catch (InvalidOperationException ex) { rejected = ex.Message.Contains("fixture-restart-failed"); }
         Check(rejected, "CLI failure was swallowed.");
     }
-    finally { foreach (var variable in variables) Environment.SetEnvironmentVariable(variable, saved[variable]); }
+    finally { Environment.CurrentDirectory = previousDirectory; foreach (var variable in variables) Environment.SetEnvironmentVariable(variable, saved[variable]); }
 });
 
 if (args.Length > 1)
