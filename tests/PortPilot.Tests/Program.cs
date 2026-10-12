@@ -542,6 +542,7 @@ await Test("Packaged desktop host preserves the job, releases after stop and lea
 await BalanceTests.Run(root, Test, Check, Throws);
 await TelemetryTests.Run(root, Test, Check);
 await ProjectOpenerTests.Run(root, Test, Check);
+await WebServiceTests.Run(Test, Check, Throws);
 await AssistantUsageTests.Run(root, Test, Check);
 await AppearanceTests.Run(root, Test, Check);
 var report = $"{passed.Count} passed, {failures.Count} failed\n" + string.Join("\n", passed.Select(p => "PASS " + p)) + "\n" + string.Join("\n", failures);

@@ -83,12 +83,17 @@ internal static class TelemetryTests
             using var probe = new ServiceProbe(); var result = await probe.MeasureAsync([server.Entry()]);
             check(result.Label == "HTTP 200" && result.Tone == ServiceTone.Good && result.Milliseconds >= 20, "HTTP status or response timing is incorrect.");
             check(server.Methods.SequenceEqual(["HEAD"]) && result.Hint.Contains(server.Port.ToString()), "Probe downloaded the page or omitted its target.");
+            var url = WebServiceOpener.SelectUrl([server.Entry()], result, DateTime.UtcNow);
+            check(url is { Scheme: "http", Host: "127.0.0.1" } && url.Port == server.Port
+                && WebServiceOpener.BrowserStart(url).FileName == url.AbsoluteUri && WebServiceOpener.BrowserStart(url).UseShellExecute,
+                "A verified HTTP response did not retain the exact local URL for the default browser.");
         });
         await test("HEAD fallback handles 405 and HTTP failures remain visibly distinct from TCP reachability", async () =>
         {
             await using var server = new HttpFixture(method => method == "HEAD" ? 405 : 503);
             using var probe = new ServiceProbe(); var result = await probe.MeasureAsync([server.Entry()]);
             check(result.Label == "HTTP 503" && result.Tone == ServiceTone.Bad && server.Methods.SequenceEqual(["HEAD", "GET"]), "HTTP failure became a green TCP result.");
+            check(WebServiceOpener.SelectUrl([server.Entry()], result, DateTime.UtcNow)?.Port == server.Port, "A browser-reachable error page was discarded.");
             await using var missing = new HttpFixture(_ => 404);
             result = await probe.MeasureAsync([missing.Entry()]);
             check(result.Label == "HTTP 404" && result.Tone == ServiceTone.Warning, "A missing root route was silently treated as healthy.");
@@ -100,6 +105,7 @@ internal static class TelemetryTests
             using var probe = new ServiceProbe(); var entry = server.Entry() with { Name = "postgres", Kind = "TCP" };
             var result = await probe.MeasureAsync([entry, entry with { Address = "0.0.0.0" }, entry with { Port = unusedPort }]);
             check(result.Label == "1/2 svarar" && result.Tone == ServiceTone.Warning && server.Methods.IsEmpty, "Non-HTTP ports received an HTTP request or bindings counted twice.");
+            check(result.WebUrls?.Count == 0, "A TCP-only service was mistaken for a website.");
             result = await probe.MeasureAsync([entry with { Protocol = "udp" }]);
             check(result.Label == "UDP" && result.Milliseconds is null && result.Tone == ServiceTone.Neutral, "UDP received a fabricated TCP status.");
             check(ServiceProbe.LocalAddress("0.0.0.0")?.Equals(IPAddress.Loopback) == true && ServiceProbe.LocalAddress("::")?.Equals(IPAddress.IPv6Loopback) == true

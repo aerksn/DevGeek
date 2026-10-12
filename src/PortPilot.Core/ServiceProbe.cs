@@ -6,7 +6,7 @@ using System.Net.Sockets;
 namespace PortPilot.Core;
 
 public enum ServiceTone { Neutral, Good, Warning, Bad }
-public sealed record ProbeReading(string Label, ServiceTone Tone, double? Milliseconds, string Hint, DateTime SampledUtc)
+public sealed record ProbeReading(string Label, ServiceTone Tone, double? Milliseconds, string Hint, DateTime SampledUtc, IReadOnlyList<Uri>? WebUrls = null)
 {
     public static ProbeReading Waiting => new("Väntar", ServiceTone.Neutral, null, "Kontrollerar tjänstens lokala portar…", DateTime.UtcNow);
     public string Text => Milliseconds is { } ms ? Label + " · " + (ms < 1 ? "<1" : Math.Round(ms).ToString()) + " ms" : Label;
@@ -16,7 +16,7 @@ public sealed class ServiceProbe : IDisposable
 {
     private readonly SemaphoreSlim slots = new(6);
     private readonly HttpClient http = new(new SocketsHttpHandler { AllowAutoRedirect = false, UseProxy = false, UseCookies = false, MaxResponseDrainSize = 0, ConnectTimeout = TimeSpan.FromMilliseconds(900) }) { Timeout = Timeout.InfiniteTimeSpan };
-    private sealed record Result(int Port, bool? Reachable, int? HttpCode, double? Milliseconds, string Detail);
+    private sealed record Result(int Port, bool? Reachable, int? HttpCode, double? Milliseconds, string Detail, Uri? WebUrl = null);
 
     public static IPAddress? LocalAddress(string address)
     {
@@ -79,7 +79,8 @@ public sealed class ServiceProbe : IDisposable
             tone = health == "unhealthy" ? ServiceTone.Bad : ServiceTone.Warning;
         }
         if (health is not null) hint += "\nDocker health: " + health;
-        return new(label, tone, latency, hint + "\nSvarstiden är den långsammaste kontrollerade porten. HTTP mäts till svarshuvuden; TCP mäter anslutningen.", DateTime.UtcNow);
+        return new(label, tone, latency, hint + "\nSvarstiden är den långsammaste kontrollerade porten. HTTP mäts till svarshuvuden; TCP mäter anslutningen.", DateTime.UtcNow,
+            results.Where(result => result.WebUrl is not null).Select(result => result.WebUrl!).ToArray());
     }
     private async Task<Result> CheckAsync(PortEntry entry, CancellationToken cancellationToken)
     {
@@ -109,9 +110,9 @@ public sealed class ServiceProbe : IDisposable
                 using var get = new HttpRequestMessage(HttpMethod.Get, uri);
                 watch.Restart();
                 using var fallback = await http.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-                return new(entry.Port, true, (int)fallback.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)fallback.StatusCode} från {uri}. Ingen omdirigering följs.");
+                return new(entry.Port, true, (int)fallback.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)fallback.StatusCode} från {uri}. Ingen omdirigering följs.", uri);
             }
-            return new(entry.Port, true, (int)response.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode} från {uri}. Ingen omdirigering följs.");
+            return new(entry.Port, true, (int)response.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode} från {uri}. Ingen omdirigering följs.", uri);
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or ObjectDisposedException)
         { cancellationToken.ThrowIfCancellationRequested(); return new(entry.Port, true, null, tcpTime, "TCP ansluten; inget verifierat HTTP-svar. HTTPS-certifikat kringgås inte."); }

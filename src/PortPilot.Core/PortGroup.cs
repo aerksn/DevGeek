@@ -19,6 +19,7 @@ public sealed class PortGroup : Observable
     public string ResourceSummary => $"RAM {resources?.MemoryText ?? "—"}  ·  CPU {resources?.CpuText ?? "—"}  ·  ↑ {resources?.Uptime(DateTime.UtcNow) ?? new ResourceReading(null, null, entries[0].StartedUtc, DateTime.UtcNow).Uptime(DateTime.UtcNow)}";
     public void SetResources(ResourceReading? value) { resources = value; RefreshTelemetry(); }
     public void SetProbe(ProbeReading value) { probe = value; RefreshTelemetry(); }
+    public Uri? BrowserUrl => WebServiceOpener.SelectUrl(entries, probe, DateTime.UtcNow);
     public void RefreshTelemetry() { Changed(nameof(StatusText)); Changed(nameof(StatusTone)); Changed(nameof(ResourceSummary)); Changed(nameof(Hint)); }
     public bool IsDevelopment => entries.Any(p => p.IsDevelopment);
     public bool CanStop => !IsStopping && StopTarget is not null;
@@ -50,7 +51,9 @@ public sealed class PortGroup : Observable
             : "\nRAM är processens arbetsminne. CPU är andelen av datorns totala logiska processorkapacitet. Gäller portens ägarprocess.")
         + "\nKörtid räknas från processens eller containerns start. — betyder att ett värde inte är tillgängligt ännu."
         + (IsDocker && entries[0].ProjectDirectory is { } directory ? "\nProjektmapp: " + directory : "")
-        + "\n\nDubbelklick eller Enter: terminal i projektmappen. Högerklick: terminal eller Zed.";
+        + (entries.Any(WebServiceOpener.IsCandidate)
+            ? "\n\nDubbelklick eller Enter: öppna webbporten i standardwebbläsaren om HTTP svarar; annars terminal. Högerklick: terminal eller Zed."
+            : "\n\nDubbelklick eller Enter: terminal i projektmappen. Högerklick: terminal eller Zed.");
     public bool IsExpanded { get => isExpanded; set { if (isExpanded == value) return; isExpanded = value; Changed(); } }
 
     private PortGroup(List<PortEntry> entries) { this.entries = entries; Key = OwnerKey(entries[0]); }
