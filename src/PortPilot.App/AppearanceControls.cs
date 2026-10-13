@@ -36,7 +36,7 @@ public partial class MainWindow
         foreach (var mode in Enum.GetValues<BackgroundMode>())
         {
             var item = new MenuItem { Header = mode.ToString(), IsCheckable = true, Tag = mode,
-                ToolTip = mode switch { BackgroundMode.Normal => "DevGeeks vanliga solida bakgrund", BackgroundMode.Opaque => "En solid yta i din valda färg",
+                ToolTip = mode switch { BackgroundMode.Normal => "Otter Monitors vanliga solida bakgrund", BackgroundMode.Opaque => "En solid yta i din valda färg",
                     BackgroundMode.Clear => "Färgad transparens utan suddig bakgrund", BackgroundMode.Blur => "Suddig glasbakgrund", _ => "Windows Acrylic med färgton" } };
             item.Click += (_, _) => SetAppearance(settings.Appearance with { Mode = mode });
             appearanceMenu.Items.Add(item);
@@ -179,7 +179,7 @@ public sealed class AppearanceDialog : Window
         transparency.Style = (Style)FindResource("AppearanceSlider");
         panel.Children.Add(transparency); panel.Children.Add(percent);
         percent.Foreground = (Brush)FindResource("MutedBrush"); percent.FontSize = 11;
-        panel.Children.Add(new TextBlock { Text = draft.Mode == BackgroundMode.Normal ? "Normal använder DevGeeks standardbakgrund. Färgen sparas för de andra lägena."
+        panel.Children.Add(new TextBlock { Text = draft.Mode == BackgroundMode.Normal ? "Normal använder Otter Monitors standardbakgrund. Färgen sparas för de andra lägena."
             : draft.Mode == BackgroundMode.Opaque ? "Opaque ger en helt solid yta i färgen ovan."
             : "0 % = solid färgton · 100 % = ingen färgton.\nBakgrundseffekten följer det valda läget.", FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 12, 0, 0) });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 24, 0, 0) };

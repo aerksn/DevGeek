@@ -62,7 +62,7 @@ public static class ProjectOpener
         var executable = FindExecutable("zed.exe",
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Zed", "bin", "zed.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Zed", "bin", "zed.exe"));
-        if (executable is null) throw new InvalidOperationException("Zed hittades inte. Installera Zed eller lägg dess bin-mapp i PATH och starta om DevGeek.");
+        if (executable is null) throw new InvalidOperationException("Zed hittades inte. Installera Zed eller lägg dess bin-mapp i PATH och starta om Otter Monitor.");
         using var process = Process.Start(ZedStart(directory, executable));
     }
 

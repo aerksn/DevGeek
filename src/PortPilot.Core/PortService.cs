@@ -76,7 +76,7 @@ public sealed class PortService
 
     public async Task StopAsync(PortEntry entry)
     {
-        if (entry.IsDocker || !entry.CanStop) throw new InvalidOperationException("Den här processen kan inte stoppas från DevGeek.");
+        if (entry.IsDocker || !entry.CanStop) throw new InvalidOperationException("Den här processen kan inte stoppas från Otter Monitor.");
         using var process = Process.GetProcessById(entry.Pid);
         // Hold the original kernel handle while validating and terminating, protecting against PID reuse.
         _ = process.Handle;

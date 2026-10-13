@@ -52,9 +52,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int LaunchCount => QuickStarts.Count;
     private string AccountBalanceLabel => !settings.OpenAiBalanceEnabled ? "OpenAI · koppla" : (balanceError is null ? balance : balance is null ? null : balance with { State = "unreadable" })?.Label(DateTime.UtcNow) ?? "OpenAI · väntar";
     public string BalanceLabel => AccountBalanceLabel + (preview ? " · exempel" : "");
-    public string BalanceHint => preview ? "Designförhandsvisning med exempeldata. Detta är inte ditt kontos saldo. Öppna app/DevGeek.exe för din sparade saldokoppling. Klicka på loggan eller beloppet för information."
-        : balanceError ?? (!settings.OpenAiBalanceEnabled ? "Öppna Billing via OpenAI-loggan och logga in för att se ditt USD-saldo.\nDevGeek kan läsa av i bakgrunden medan Chrome är stängt. Dra i den tomma ytan bredvid saldot för att flytta fönstret."
-        : (balance?.Hint(DateTime.UtcNow) ?? "Kopplingen är aktiverad. Öppna Billing via OpenAI-loggan för en avläsning.") + "\nDevGeeks egen Billing-session. Öppna den via OpenAI-loggan om inloggningen behöver förnyas.");
+    public string BalanceHint => preview ? "Designförhandsvisning med exempeldata. Detta är inte ditt kontos saldo. Öppna app/OtterMonitor.exe för din sparade saldokoppling. Klicka på loggan eller beloppet för information."
+        : balanceError ?? (!settings.OpenAiBalanceEnabled ? "Öppna Billing via OpenAI-loggan och logga in för att se ditt USD-saldo.\nOtter Monitor kan läsa av i bakgrunden medan Chrome är stängt. Dra i den tomma ytan bredvid saldot för att flytta fönstret."
+        : (balance?.Hint(DateTime.UtcNow) ?? "Kopplingen är aktiverad. Öppna Billing via OpenAI-loggan för en avläsning.") + "\nOtter Monitors egen Billing-session. Öppna den via OpenAI-loggan om inloggningen behöver förnyas.");
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
 
@@ -62,7 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         this.store = store; this.settings = settings; this.preview = preview;
         balanceStore = new(store.DirectoryPath);
-        launches = new(store.DirectoryPath, shadowCopyHost: !File.Exists(Path.Combine(AppContext.BaseDirectory, "DevGeek.dll")));
+        launches = new(store.DirectoryPath, shadowCopyHost: !File.Exists(Path.Combine(AppContext.BaseDirectory, "OtterMonitor.dll")));
         InitializeComponent(); DataContext = this;
         material = new(this, enabled: !preview, hasTintLayer: true);
         InitializeAppearance();
@@ -119,7 +119,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 if (closed || !settings.OpenAiBalanceEnabled) return false;
                 try { balanceStore.Apply(message, DateTime.UtcNow); RefreshBalance(); return true; }
-                catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera DevGeeks datamapp."; Changed(nameof(BalanceHint)); Changed(nameof(BalanceLabel)); return false; }
+                catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera Otter Monitors datamapp."; Changed(nameof(BalanceHint)); Changed(nameof(BalanceLabel)); return false; }
             }, message => { if (closed) return; balanceError = message; Changed(nameof(BalanceHint)); Changed(nameof(BalanceLabel)); });
             await billingBrowser.StartAsync();
         }
@@ -134,7 +134,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (!previous)
         {
             try { balanceStore.Apply(new(1, "unreadable"), DateTime.UtcNow); }
-            catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera DevGeeks datamapp."; }
+            catch (Exception) { balanceError = "Saldot kunde inte sparas lokalt. Kontrollera Otter Monitors datamapp."; }
         }
         await StartBackgroundBalanceAsync();
         if (billingBrowser is null) throw new InvalidOperationException(balanceError ?? "Billing-sessionen kunde inte startas.");
@@ -413,7 +413,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var parent = (Panel)LaunchSection.Parent;
         parent.Children.Remove(LaunchSection);
         LaunchSection.Visibility = Visibility.Visible;
-        var dialog = new Window { Title = "DevGeek · Snabbstarter", Owner = this, Width = 560, MinWidth = 420,
+        var dialog = new Window { Title = "Otter Monitor · Snabbstarter", Owner = this, Width = 560, MinWidth = 420,
             SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = LaunchSection, DataContext = this, Background = (System.Windows.Media.Brush)FindResource("SurfaceBrush"),
             Foreground = (System.Windows.Media.Brush)FindResource("TextBrush") };
@@ -430,7 +430,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (closingBilling) { e.Cancel = true; return; }
         if (billingCloseReady) return;
         if (QuickStarts.Any(q => q.IsBusy) || portActions.Count > 0) { e.Cancel = true; SetStatus("Vänta tills den pågående åtgärden är klar innan du stänger."); return; }
-        if (QuickStarts.Any(q => q.Session?.IsRunning == true) && !Dialogs.Confirm(this, "Stäng DevGeek?", "Dina startade processer fortsätter att köras. DevGeek återansluter snabbstarterna nästa gång appen öppnas.\n\nVill du stoppa en hel snabbstart, välj Avbryt och Stoppa först.", "Stäng")) { e.Cancel = true; return; }
+        if (QuickStarts.Any(q => q.Session?.IsRunning == true) && !Dialogs.Confirm(this, "Stäng Otter Monitor?", "Dina startade processer fortsätter att köras. Otter Monitor återansluter snabbstarterna nästa gång appen öppnas.\n\nVill du stoppa en hel snabbstart, välj Avbryt och Stoppa först.", "Stäng")) { e.Cancel = true; return; }
         Save();
         if (billingBrowser is not null || claudeBrowser is not null)
         {
@@ -592,7 +592,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var closeLaunches = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
         closeLaunches.Tick += (_, _) =>
         {
-            var dialog = OwnedWindows.OfType<Window>().FirstOrDefault(window => window.Title == "DevGeek · Snabbstarter" && window.IsLoaded);
+            var dialog = OwnedWindows.OfType<Window>().FirstOrDefault(window => window.Title == "Otter Monitor · Snabbstarter" && window.IsLoaded);
             if (dialog is null) return;
             launchesOpened = ReferenceEquals(dialog.Content, LaunchSection) && LaunchSection.IsVisible && Width == 360
                 && RowVisuals<TextBlock>(LaunchSection).Any(text => text.Text == QuickStarts[0].Name);

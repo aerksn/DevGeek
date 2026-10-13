@@ -14,13 +14,13 @@ public sealed class BalanceDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         var panel = new StackPanel { Margin = new Thickness(24) };
         panel.Children.Add(new TextBlock { Text = "OpenAI-saldo", FontSize = 22, FontWeight = FontWeights.SemiBold });
-        Text(preview ? "Designförhandsvisning · exempeldata. Öppna app/DevGeek.exe för ditt riktiga saldo och din sparade inloggning."
-            : "En egen Billing-session i DevGeek. Chrome behöver inte vara öppet.", new Thickness(0, 8, 0, 18));
+        Text(preview ? "Designförhandsvisning · exempeldata. Öppna app/OtterMonitor.exe för ditt riktiga saldo och din sparade inloggning."
+            : "En egen Billing-session i Otter Monitor. Chrome behöver inte vara öppet.", new Thickness(0, 8, 0, 18));
         var state = Text(hint(), new Thickness(0, 0, 0, 18));
         panel.Children.Add(new TextBlock { Text = "Anslut ditt konto", FontSize = 13, FontWeight = FontWeights.SemiBold });
         Text("Öppna Billing och logga in. Välj rätt organisation och vänta tills saldot visas. Sessionen sparas lokalt och krypterat för nästa appstart. Dölj sedan fönstret med Dölj eller krysset. OpenAI kan ibland kräva en ny inloggning.", new Thickness(0, 7, 0, 12));
         Button("Logga in / Öppna Billing", async () => { await login(); Close(); }, primary: true);
-        Text("Avläsningen fortsätter i bakgrunden var femte minut medan DevGeek är igång. Inloggningen sparas i appens egen webbläsarsession. Dina vanliga webbläsare påverkas inte.", new Thickness(0, 18, 0, 12));
+        Text("Avläsningen fortsätter i bakgrunden var femte minut medan Otter Monitor är igång. Inloggningen sparas i appens egen webbläsarsession. Dina vanliga webbläsare påverkas inte.", new Thickness(0, 18, 0, 12));
         Button("Uppdatera saldo nu", refresh);
         Text("Om inloggningen går ut eller sidan inte kan läsas visar appen att saldot är äldre. Öppna Billing här igen för att fortsätta. Microsoft Edge WebView2 Runtime krävs.", new Thickness(0, 14, 0, 12));
         var bottom = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };

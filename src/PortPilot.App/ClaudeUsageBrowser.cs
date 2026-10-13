@@ -16,7 +16,7 @@ namespace PortPilot.App;
 // A separate, user-signed-in Claude profile. Never opens Claude Desktop's credentials.
 internal sealed class ClaudeUsageBrowser : IDisposable
 {
-    private readonly Window window = new() { Title = "DevGeek · Claude usage", Width = 1000, Height = 760, MinWidth = 720, MinHeight = 500, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+    private readonly Window window = new() { Title = "Otter Monitor · Claude usage", Width = 1000, Height = 760, MinWidth = 720, MinHeight = 500, WindowStartupLocation = WindowStartupLocation.CenterScreen };
     private readonly TextBlock status = new() { Text = "Logga in med samma Claude-konto som i appen.", Margin = new Thickness(12, 4, 12, 4), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock address = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly DispatcherTimer observeTimer = new() { Interval = TimeSpan.FromSeconds(15) };

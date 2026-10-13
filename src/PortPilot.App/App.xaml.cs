@@ -86,14 +86,14 @@ public partial class App : Application
         if (!preview && !capture)
         {
             instance = new Mutex(true, "Local\\PortPilot.Desktop", out var first);
-            if (!first) { MessageBox.Show("DevGeek körs redan. Du hittar fönstret i aktivitetsfältet.", "DevGeek"); Shutdown(); return; }
+            if (!first) { MessageBox.Show("Otter Monitor körs redan. Du hittar fönstret i aktivitetsfältet.", "Otter Monitor"); Shutdown(); return; }
         }
         var store = new SettingsStore(SettingsStore.DefaultDirectory);
         Settings settings;
         try { settings = preview || capture ? new Settings() : store.Load(); }
         catch (Exception ex)
         {
-            MessageBox.Show($"Inställningarna kunde inte läsas. Filen har inte ändrats.\n\n{store.FilePath}\n\n{ex.Message}", "DevGeek", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Inställningarna kunde inte läsas. Filen har inte ändrats.\n\n{store.FilePath}\n\n{ex.Message}", "Otter Monitor", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1); return;
         }
         var main = new MainWindow(store, settings, preview || capture);
@@ -103,7 +103,7 @@ public partial class App : Application
             var stayOpen = e.Args.Contains("--stay-open");
             if (stayOpen)
             {
-                main.Title = "DevGeek · Designförhandsvisning";
+                main.Title = "Otter Monitor · Designförhandsvisning";
                 if (e.Args.Contains("--glass")) main.EnableGlassPreview();
             }
             else

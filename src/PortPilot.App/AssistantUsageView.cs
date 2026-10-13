@@ -86,7 +86,7 @@ public partial class MainWindow
             var row = UsageRow("Claude Code", claudeQuota, assistantActivity.ClaudeDesktopRunning ? claudeDesktopError : null,
                 !claudeConnected ? "Klicka för att koppla" : assistantActivity.ClaudeDesktopRunning ? claudeDesktopState switch
                 { "login_required" => "Logga in", "paused" => "Öppna användning", "unreadable" => "Kan inte läsa kvot", _ => "Läser kvot…" } : "Väntar på svar…",
-                assistantActivity.ClaudeDesktopRunning ? "Claude-appen är öppen. Kvoten läses från kontots användningssida i DevGeeks egen session ungefär varje minut. Klicka för att logga in eller uppdatera; använd samma konto som i Claude-appen." : null);
+                assistantActivity.ClaudeDesktopRunning ? "Claude-appen är öppen. Kvoten läses från kontots användningssida i Otter Monitors egen session ungefär varje minut. Klicka för att logga in eller uppdatera; använd samma konto som i Claude-appen." : null);
             if (assistantActivity.ClaudeDesktopRunning && claudeQuota is null && claudeConnected && claudeDesktopState == "login_required")
                 row = row with { Value = "Logga in", CompactValue = "Logga in" };
             rows.Add(row);

@@ -33,7 +33,7 @@ public sealed class ClaudeUsageInstaller(string dataDirectory, string settingsFi
         var settings = bytes.Length == 0 ? new JsonObject() : ParseSettings(bytes);
         var existing = settings["statusLine"];
         if (existing is not null && (existing is not JsonObject line || line["command"]?.GetValue<string>() != Command))
-            throw new IOException("Claude Code har redan en egen statusrad. DevGeek har inte ändrat den. Kopplingen kan kombineras manuellt enligt README.");
+            throw new IOException("Claude Code har redan en egen statusrad. Otter Monitor har inte ändrat den. Kopplingen kan kombineras manuellt enligt README.");
         using var stream = typeof(ClaudeUsageInstaller).Assembly.GetManifestResourceStream("PortPilot.Core.claude-usage.ps1")!;
         using var reader = new StreamReader(stream);
         var script = reader.ReadToEnd();

@@ -22,7 +22,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PORTPILOT_TEST_NODE = (Get-Command node).Source
-          dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:RUNNER_TEMP\devgeek-tests" "$pwd\app\DevGeek.exe"
+          dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:RUNNER_TEMP\otter-monitor-tests" "$pwd\app\OtterMonitor.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: OpenAI DOM reader checks
         run: node --test tests/OpenAiBalanceReader/reader.test.cjs
@@ -31,11 +31,11 @@ jobs:
       - name: WPF controls with synthetic data
         shell: pwsh
         run: |
-          $run = Start-Process -FilePath ./app/DevGeek.exe -ArgumentList '--preview','--verify-ui','--report',"$env:RUNNER_TEMP\ui-report.txt",'--output',"$env:RUNNER_TEMP\preview.png" -WindowStyle Hidden -PassThru
+          $run = Start-Process -FilePath ./app/OtterMonitor.exe -ArgumentList '--preview','--verify-ui','--report',"$env:RUNNER_TEMP\ui-report.txt",'--output',"$env:RUNNER_TEMP\preview.png" -WindowStyle Hidden -PassThru
           if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'UI check timeout' }
           Get-Content "$env:RUNNER_TEMP\ui-report.txt"
           if ($run.ExitCode -ne 0) { exit $run.ExitCode }
       - uses: actions/upload-artifact@v4
         with:
-          name: DevGeek-Windows-x64
-          path: app/DevGeek.exe
+          name: OtterMonitor-Windows-x64
+          path: app/OtterMonitor.exe

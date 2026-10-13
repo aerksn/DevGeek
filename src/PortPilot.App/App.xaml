@@ -34,7 +34,7 @@
       <GradientStop Color="#0AC7D8FA" Offset="1" />
     </LinearGradientBrush>
     <Style TargetType="Window">
-      <Setter Property="Icon" Value="/DevGeek;component/devgeek.ico" />
+      <Setter Property="Icon" Value="/OtterMonitor;component/otter-monitor.ico" />
       <Setter Property="Background" Value="{StaticResource BackgroundBrush}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
       <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />

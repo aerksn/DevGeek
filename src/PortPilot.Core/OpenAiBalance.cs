@@ -36,7 +36,7 @@ public sealed record BalanceSnapshot(decimal? Amount, DateTime? ObservedUtc, Dat
         var latest = ObservedUtc is { } time ? $"Senast avläst {time.ToLocalTime():yyyy-MM-dd HH:mm:ss}.\n" : "Inget saldo har lästs av ännu.\n";
         var state = State switch
         {
-            "login_required" => "Logga in på OpenAI Billing i DevGeeks eget fönster.",
+            "login_required" => "Logga in på OpenAI Billing i Otter Monitors eget fönster.",
             "page_closed" => "Billing-sessionen är stängd. Öppna Billing via OpenAI-loggan igen.",
             "paused" => "Billing-fliken har lämnat översikten. Öppna översikten igen.",
             "unreadable" => "Saldofältet kunde inte läsas. Öppna Billing och kontrollera sidan.",

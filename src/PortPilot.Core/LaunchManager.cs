@@ -51,7 +51,7 @@ public sealed class LaunchManager(string directory, bool shadowCopyHost = false,
     private string PrepareHost()
     {
         if (hostPath is not null) return hostPath;
-        var source = hostExecutable ?? Environment.ProcessPath ?? throw new InvalidOperationException("Kunde inte hitta DevGeeks programfil.");
+        var source = hostExecutable ?? Environment.ProcessPath ?? throw new InvalidOperationException("Kunde inte hitta Otter Monitors programfil.");
         if (!shadowCopyHost) return hostPath = source;
         // Keep the portable app replaceable while environments run. One cached host per app build, shared by launches.
         using var file = File.OpenRead(source);

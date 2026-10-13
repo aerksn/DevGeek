@@ -46,7 +46,7 @@ public sealed partial class BillingBrowser : IDisposable
         this.rememberSession = rememberSession; sessionStore = new(directory);
         using var resource = typeof(BillingBrowser).Assembly.GetManifestResourceStream("PortPilot.BalanceReader.js") ?? throw new IOException("Saldoläsaren saknas.");
         using var text = new StreamReader(resource); reader = text.ReadToEnd();
-        window = new Window { Title = "DevGeek · OpenAI Billing", Width = 1040, Height = 780, MinWidth = 760, MinHeight = 500, ShowInTaskbar = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+        window = new Window { Title = "Otter Monitor · OpenAI Billing", Width = 1040, Height = 780, MinWidth = 760, MinHeight = 500, ShowInTaskbar = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
         var layout = new DockPanel();
         var top = new DockPanel { Height = 48, Margin = new Thickness(10, 0, 10, 0), LastChildFill = true };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -207,7 +207,7 @@ public sealed partial class BillingBrowser : IDisposable
         if (disposed) return false;
         var fingerprint = JsonSerializer.Serialize(message, BalanceStore.JsonOptions);
         if (fingerprint == previous) return true; // Merely reading the same DOM must not renew its timestamp.
-        if (!receive(message)) { status.Text = "Avläsningen kunde inte sparas. DevGeek försöker igen."; return false; }
+        if (!receive(message)) { status.Text = "Avläsningen kunde inte sparas. Otter Monitor försöker igen."; return false; }
         previous = fingerprint;
         status.Text = message.State switch
         {
@@ -229,7 +229,7 @@ public sealed partial class BillingBrowser : IDisposable
         if (!rememberSession) return;
         try { sessionStore.Clear(); sessionError = null; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        { sessionError = "Den sparade sessionen kunde inte raderas. Kontrollera DevGeeks datamapp."; }
+        { sessionError = "Den sparade sessionen kunde inte raderas. Kontrollera Otter Monitors datamapp."; }
     }
     public async Task FlushSessionAsync()
     {
@@ -252,7 +252,7 @@ public sealed partial class BillingBrowser : IDisposable
                 sessionStore.Save(cookies, DateTime.UtcNow); sessionSaved = DateTime.UtcNow; sessionError = null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or JsonException or COMException or TimeoutException)
-            { if (!disposed) sessionError = "Inloggningen kunde inte sparas för nästa appstart. Kontrollera DevGeeks datamapp."; }
+            { if (!disposed) sessionError = "Inloggningen kunde inte sparas för nästa appstart. Kontrollera Otter Monitors datamapp."; }
         }
     }
     private void HideOnClose(object? sender, CancelEventArgs args)
