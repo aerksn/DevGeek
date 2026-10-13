@@ -146,11 +146,14 @@ internal static class AssistantUsageTests
             check(ClaudePageUsage.Parse("""{"state":"login_required"}""", now).Snapshot is null, "Login requirement invented a quota.");
             return Task.CompletedTask;
         });
-        await test("Claude quota is read only from the exact HTTPS usage page", () =>
+        await test("Claude navigation preserves exact HTTPS origin checks and distinguishes the SPA dialog route", () =>
         {
             check(ClaudePageUsage.IsUsagePage(ClaudePageUsage.Url) && ClaudePageUsage.IsUsagePage(ClaudePageUsage.Url + "/"), "Valid usage route rejected.");
             foreach (var url in new[] { "http://claude.ai/settings/usage", "https://claude.ai.example.com/settings/usage", "https://claude.ai:444/settings/usage", "https://claude.ai/chat/123", "https://claude.ai/settings/billing" })
                 check(!ClaudePageUsage.IsUsagePage(url), "An unrelated source could provide the quota.");
+            check(ClaudePageUsage.IsClaudePage("https://claude.ai/new") && !ClaudePageUsage.IsUsagePage("https://claude.ai/new"), "The SPA route could not reach dialog validation.");
+            foreach (var url in new[] { "http://claude.ai/new", "https://claude.ai.example.com/new", "https://claude.ai:444/new", "https://claude.ai/login", "invalid" })
+                check(!ClaudePageUsage.IsClaudePage(url), "A foreign or login page reached quota evaluation.");
             return Task.CompletedTask;
         });
     }

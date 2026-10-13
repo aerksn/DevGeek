@@ -28,7 +28,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
     private readonly bool fixture;
     private CoreWebView2Controller? controller;
     private Task? initializing, checkpoint;
-    private bool disposed, navigating, reading, authenticated;
+    private bool disposed, navigating, reading, authenticated, resumeAfterSignIn;
     private long generation;
     private string previous = "", fixtureHtml = "";
     private string? sessionError;
@@ -88,16 +88,22 @@ internal sealed class ClaudeUsageBrowser : IDisposable
                 if (disposed || !Uri.TryCreate(args.Uri, UriKind.Absolute, out var uri) || uri.Scheme != "https") { args.Cancel = true; return; }
                 navigating = true; generation++; previous = "";
                 address.Text = uri.GetLeftPart(UriPartial.Path);
-                if (uri.Host == "claude.ai" && uri.AbsolutePath.StartsWith("/login", StringComparison.Ordinal)) ForgetSession();
+                if (uri.Host == "claude.ai" && uri.AbsolutePath.StartsWith("/login", StringComparison.Ordinal)) { resumeAfterSignIn = true; ForgetSession(); }
                 if (!ClaudePageUsage.IsUsagePage(args.Uri)) Publish(new(uri.AbsolutePath.Contains("login") || uri.Host != "claude.ai" ? "login_required" : "paused", null));
             };
             core.NavigationCompleted += async (_, args) =>
             {
                 navigating = false; if (disposed) return;
                 if (!args.IsSuccess) { Publish(new("unreadable", null)); return; }
-                if (!fixture && Uri.TryCreate(core.Source, UriKind.Absolute, out var uri) && uri.Host == "claude.ai" && uri.AbsolutePath.TrimEnd('/') is "" or "/new")
-                { core.Navigate(ClaudePageUsage.Url); return; }
+                if (!fixture && resumeAfterSignIn && Uri.TryCreate(core.Source, UriKind.Absolute, out var uri) && uri.Host == "claude.ai" && uri.AbsolutePath.TrimEnd('/') is "" or "/new")
+                { resumeAfterSignIn = false; core.Navigate(ClaudePageUsage.Url); return; }
                 await ObserveAsync();
+            };
+            core.SourceChanged += async (_, args) =>
+            {
+                if (disposed) return;
+                if (Uri.TryCreate(core.Source, UriKind.Absolute, out var uri)) address.Text = uri.GetLeftPart(UriPartial.Path);
+                if (!args.IsNewDocument && !navigating) await ObserveAsync();
             };
             core.NewWindowRequested += (_, args) =>
             {
@@ -121,7 +127,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
         if (disposed || navigating || controller is null || !manual && window.IsVisible && window.WindowState != WindowState.Minimized) return;
         try
         {
-            if (ClaudePageUsage.IsUsagePage(controller.CoreWebView2.Source)) controller.CoreWebView2.Reload();
+            if (ClaudePageUsage.IsClaudePage(controller.CoreWebView2.Source)) controller.CoreWebView2.Navigate(ClaudePageUsage.Url);
             else if (manual) controller.CoreWebView2.Navigate(ClaudePageUsage.Url);
             await Task.CompletedTask;
         }
@@ -129,7 +135,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
     }
     private async Task ObserveAsync()
     {
-        if (disposed || navigating || reading || controller is null || !ClaudePageUsage.IsUsagePage(controller.CoreWebView2.Source)) return;
+        if (disposed || navigating || reading || controller is null || !ClaudePageUsage.IsClaudePage(controller.CoreWebView2.Source)) return;
         reading = true; var current = generation;
         try
         {
@@ -166,7 +172,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
     public Task FlushSessionAsync()
     {
         if (checkpoint is { IsCompleted: false }) return checkpoint;
-        if (disposed || !authenticated || navigating || controller is null || !ClaudePageUsage.IsUsagePage(controller.CoreWebView2.Source)) return Task.CompletedTask;
+        if (disposed || !authenticated || navigating || controller is null || !ClaudePageUsage.IsClaudePage(controller.CoreWebView2.Source)) return Task.CompletedTask;
         return checkpoint = CaptureAsync();
         async Task CaptureAsync()
         {
@@ -243,6 +249,22 @@ internal sealed class ClaudeUsageBrowser : IDisposable
                 + ModernRow("All models", "13% used", "Resets Fri 2:00 PM") + ModernRow("Fable", "16% used", "Resets Fri 2:00 PM")
                 + "<h3>Cloud session credits</h3>" + ModernRow("Included credit", "$250 of $250 left", "Expires later") + "</div>");
             Check(values.Last().Snapshot!.Windows is [{ Remaining: 100, DurationMinutes: 300 }, { Remaining: 87, DurationMinutes: 10080 }], "Current settings dialog reads deeply nested h5 quota rows and excludes Fable, sidebar and cloud credits");
+            var spaDialog = "<aside>" + Card("Current session", "99% used") + "</aside><div role='dialog'><h3>Plan usage limits</h3>"
+                + "<div><div><div><span>Current session</span></div><p>Starts when a message is sent</p></div><div><div></div><span>0% used</span></div></div>"
+                + "<h3>Weekly limits</h3><div><div><div><span>All models</span></div><p>Resets Fri 2:00 PM</p></div><div><div></div><span>13% used</span></div></div>"
+                + ModernRow("Fable", "16% used", "Resets Fri 2:00 PM") + "</div>";
+            await Load(spaDialog + "<script>history.replaceState(null,'','/new')</script>");
+            Check(new Uri(core.Source).AbsolutePath == "/new" && values.Last().Snapshot!.Windows is [{ Remaining: 100 }, { Remaining: 87 }],
+                "The real settings dialog remains readable after Claude's SPA moves the usage route to /new");
+            await core.ExecuteScriptAsync("document.querySelector('[role=dialog]').remove()"); await browser.ObserveAsync();
+            Check(values.Last().State == "paused", "Closing the usage dialog on /new never reads quota-like chat content");
+            await Load(spaDialog, url: "https://claude.ai.example.com/new");
+            Check(values.Last().State == "login_required", "The SPA dialog cannot bypass exact Claude HTTPS origin checks");
+            await Load(Card("Current session", "20% used"), url: "https://claude.ai/new");
+            Check(values.Last().State == "paused", "A bare quota-like card on /new cannot replace the usage dialog");
+            await Load(spaDialog, automaticReload: true);
+            Check(new Uri(core.Source).AbsolutePath == "/settings/usage" && values.Last().Snapshot!.Windows is [{ Remaining: 100 }, { Remaining: 87 }],
+                "A hidden refresh from /new reopens the usage page instead of reloading chat");
             await Load(Card("Current session", "Used 29%") + Card("All models", "87% remaining"));
             Check(values.Last().Snapshot!.Windows is [{ Remaining: 71 }, { Remaining: 87 }], "Usage prefix and explicit remaining percentages keep their correct meaning");
             await Load(Card("Current session", "<progress max='1' value='0.29'></progress>"));

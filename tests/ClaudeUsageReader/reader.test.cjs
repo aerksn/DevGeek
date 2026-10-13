@@ -70,3 +70,23 @@ test('Only the HTTPS Claude usage page can supply quota observations', () => {
     assert.notEqual(reader.read(document(row('Current session', '40% used')), location).state, 'ok');
   }
 });
+
+test('The real SPA usage dialog remains readable after its route changes to /new', () => {
+  const modal = el('div', '', [el('h3', 'Plan usage limits'), row('Current session', '0% used'),
+    el('h3', 'Weekly limits'), row('All models', '13% used'), row('Fable', '16% used')], { role: 'dialog' });
+  assert.deepEqual(reader.read(document(row('Current session', '99% used'), modal), 'https://claude.ai/new'), {
+    state: 'ok', windows: [{ minutes: 300, usedPercent: 0 }, { minutes: 10080, usedPercent: 13 }]
+  });
+});
+test('Other Claude routes require a visible usage dialog and never read chat or unrelated dialogs', () => {
+  assert.equal(reader.read(document(row('Current session', '20% used')), 'https://claude.ai/new').state, 'paused');
+  const unrelated = el('div', '', [row('Current session', '20% used')], { role: 'dialog' });
+  assert.equal(reader.read(document(unrelated), 'https://claude.ai/new').state, 'paused');
+  const hidden = el('div', '', [el('h3', 'Plan usage limits'), row('Current session', '20% used')], { role: 'dialog' }, true);
+  assert.equal(reader.read(document(hidden), 'https://claude.ai/new').state, 'paused');
+});
+test('A usage dialog cannot bypass the exact HTTPS origin or read login pages', () => {
+  const modal = el('div', '', [el('h3', 'Plan usage limits'), row('Current session', '0% used')], { role: 'dialog' });
+  for (const location of ['https://claude.ai.example.com/new', 'http://claude.ai/new', 'https://claude.ai:8443/new', 'https://claude.ai/login'])
+    assert.notEqual(reader.read(document(modal), location).state, 'ok');
+});

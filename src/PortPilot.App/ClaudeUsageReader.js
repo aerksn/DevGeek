@@ -11,15 +11,24 @@
     try { const u = new URL(url); return u.protocol === "https:" && u.hostname === "claude.ai" && (!u.port || u.port === "443") && u.pathname.replace(/\/$/, "") === "/settings/usage"; }
     catch { return false; }
   }
+  function isClaudePage(url) {
+    try { const u = new URL(url); return u.protocol === "https:" && u.hostname === "claude.ai" && (!u.port || u.port === "443") && !u.pathname.startsWith("/login"); }
+    catch { return false; }
+  }
   function read(document, url) {
-    if (!isUsage(url)) {
+    if (!isClaudePage(url)) {
       try { const u = new URL(url); return { state: u.pathname.includes("login") || u.hostname !== "claude.ai" ? "login_required" : "paused" }; }
       catch { return { state: "unreadable" }; }
     }
     const visible = e => e.getClientRects().length > 0 && document.defaultView.getComputedStyle(e).visibility !== "hidden";
     // Usage is now a settings dialog. Keep the quota reader out of the chat sidebar.
     const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible);
-    const root = dialogs.find(e => /plan usage limits|current session|all models|aktuell session|alla modeller/.test(clean(e.innerText))) ?? document;
+    const usageDialog = dialogs.find(e => /plan usage limits|användningsgränser|plangränser/.test(clean(e.innerText))
+      && /current session|all models|aktuell session|nuvarande session|alla modeller/.test(clean(e.innerText)));
+    // Claude's SPA moves /settings/usage to /new while keeping the usage dialog open.
+    // Other routes are readable only inside that visible dialog, never from chat content.
+    if (!isUsage(url) && !usageDialog) return { state: "paused" };
+    const root = usageDialog ?? document;
     const elements = [...root.querySelectorAll("h1,h2,h3,h4,h5,h6,p,span,div,label,strong,dt")].filter(visible);
     const labelled = elements.filter(e => isLabel(clean(e.textContent)));
     const labels = labelled.filter(e => !labelled.some(other => other !== e && e.contains(other) && clean(other.textContent) === clean(e.textContent)));
@@ -65,6 +74,6 @@
     }
     return windows.length ? { state: "ok", windows } : { state: "unreadable" };
   }
-  if (typeof module !== "undefined") module.exports = { read, isUsage };
-  else scope.PortPilotClaudeUsage = { read, isUsage };
+  if (typeof module !== "undefined") module.exports = { read, isUsage, isClaudePage };
+  else scope.PortPilotClaudeUsage = { read, isUsage, isClaudePage };
 })(typeof globalThis !== "undefined" ? globalThis : this);

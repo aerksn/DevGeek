@@ -9,6 +9,11 @@ public sealed record ClaudePageUsage(string State, UsageSnapshot? Snapshot)
     public static bool IsUsagePage(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme == "https" && uri.Host == "claude.ai" && uri.IsDefaultPort && uri.AbsolutePath.TrimEnd('/') == "/settings/usage";
 
+    // The SPA may keep its usage dialog open on /new. The DOM reader still requires
+    // that visible dialog outside the dedicated usage route before accepting quotas.
+    public static bool IsClaudePage(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme == "https" && uri.Host == "claude.ai" && uri.IsDefaultPort && !uri.AbsolutePath.StartsWith("/login", StringComparison.Ordinal);
+
     public static ClaudePageUsage Parse(string json, DateTimeOffset now)
     {
         if (json.Length > 16384) throw new InvalidDataException("Ogiltig kvotavläsning.");
