@@ -26,6 +26,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: OpenAI DOM reader checks
         run: node --test tests/OpenAiBalanceReader/reader.test.cjs
+      - name: Claude quota reader checks
+        run: node --test tests/ClaudeUsageReader/reader.test.cjs
       - name: WPF controls with synthetic data
         shell: pwsh
         run: |

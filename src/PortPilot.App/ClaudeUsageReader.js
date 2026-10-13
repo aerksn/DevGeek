@@ -5,6 +5,7 @@
   const session = new Set(["current session", "aktuell session", "nuvarande session"]);
   const weekly = new Set(["all models", "alla modeller"]);
   const weeklyFallback = new Set(["weekly limits", "veckogränser"]);
+  const otherBudgets = new Set(["fable", "sonnet only", "opus only", "haiku only", "extra usage", "usage credits", "cloud session credits", "included credit", "limit resets"]);
   const isLabel = text => session.has(text) || weekly.has(text) || weeklyFallback.has(text);
   function isUsage(url) {
     try { const u = new URL(url); return u.protocol === "https:" && u.hostname === "claude.ai" && (!u.port || u.port === "443") && u.pathname.replace(/\/$/, "") === "/settings/usage"; }
@@ -12,24 +13,37 @@
   }
   function read(document, url) {
     if (!isUsage(url)) {
-      const u = new URL(url);
-      return { state: u.pathname.includes("login") || u.hostname !== "claude.ai" ? "login_required" : "paused" };
+      try { const u = new URL(url); return { state: u.pathname.includes("login") || u.hostname !== "claude.ai" ? "login_required" : "paused" }; }
+      catch { return { state: "unreadable" }; }
     }
     const visible = e => e.getClientRects().length > 0 && document.defaultView.getComputedStyle(e).visibility !== "hidden";
-    const labels = [...document.querySelectorAll("h1,h2,h3,h4,p,span,div,label")]
-      .filter(e => visible(e) && isLabel(clean(e.textContent)));
+    // Usage is now a settings dialog. Keep the quota reader out of the chat sidebar.
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')].filter(visible);
+    const root = dialogs.find(e => /plan usage limits|current session|all models|aktuell session|alla modeller/.test(clean(e.innerText))) ?? document;
+    const elements = [...root.querySelectorAll("h1,h2,h3,h4,h5,h6,p,span,div,label,strong,dt")].filter(visible);
+    const labelled = elements.filter(e => isLabel(clean(e.textContent)));
+    const labels = labelled.filter(e => !labelled.some(other => other !== e && e.contains(other) && clean(other.textContent) === clean(e.textContent)));
+    const boundaries = elements.filter(e => isLabel(clean(e.textContent)) || otherBudgets.has(clean(e.textContent)));
     function card(label) {
-      for (let e = label.parentElement, depth = 0; e && depth < 5; e = e.parentElement, depth++) {
+      for (let e = label.parentElement, depth = 0; e && depth < 10; e = e.parentElement, depth++) {
         const text = clean(e.innerText);
-        if (text.length > 1200 || labels.some(other => other !== label && e.contains(other) && clean(other.textContent) !== clean(label.textContent))) break;
+        const ownName = clean(label.textContent);
+        if (text.length > 1800 || boundaries.some(other => e.contains(other) && clean(other.textContent) !== ownName
+          && !(weekly.has(ownName) && weeklyFallback.has(clean(other.textContent))))) break;
         const values = new Set();
-        for (const match of text.matchAll(/(\d+(?:[.,]\d+)?)\s*%\s*(?:used|använt|använd|utnyttjat)\b/g)) values.add(Number(match[1].replace(",", ".")));
-        // Accessible progressbar fallback requires an explicit 0..100 scale.
-        for (const bar of e.querySelectorAll('[role="progressbar"]')) {
+        const percent = "(?<![\\d.,+-])([+-]?\\d+(?:[.,]\\d+)?)\\s*%";
+        const used = "(?:used|använt|använd|utnyttjat)";
+        const remaining = "(?:remaining|left|kvar|återstår)";
+        for (const pattern of [new RegExp(percent + "\\s*" + used + "\\b", "g"), new RegExp("\\b" + used + "\\s*" + percent, "g")])
+          for (const match of text.matchAll(pattern)) values.add(Number(match[1].replace(",", ".")));
+        for (const match of text.matchAll(new RegExp(percent + "\\s*" + remaining + "\\b", "g"))) values.add(100 - Number(match[1].replace(",", ".")));
+        // Native <progress> and accessible meters can expose a 0..1 or 0..100 scale.
+        for (const bar of e.querySelectorAll('[role="progressbar"],progress')) {
           if (!visible(bar)) continue;
-          const min = Number(bar.getAttribute("aria-valuemin") ?? 0), max = Number(bar.getAttribute("aria-valuemax") ?? 100);
-          const raw = bar.getAttribute("aria-valuenow");
-          if (raw !== null && min === 0 && max === 100 && raw.trim()) values.add(Number(raw));
+          const native = bar.tagName === "PROGRESS";
+          const min = Number(bar.getAttribute("aria-valuemin") ?? 0), max = Number(bar.getAttribute(native ? "max" : "aria-valuemax") ?? (native ? 1 : 100));
+          const raw = bar.getAttribute(native ? "value" : "aria-valuenow");
+          if (raw !== null && raw.trim() && min === 0 && (max === 1 || max === 100)) values.add(Number((Number(raw) * 100 / max).toFixed(6)));
         }
         if (values.size > 1) return null;
         if (values.size === 1) {

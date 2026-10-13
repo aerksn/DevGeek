@@ -238,6 +238,18 @@ internal sealed class ClaudeUsageBrowser : IDisposable
         {
             await Load(Card("Current session", "37% used") + "<h2>Weekly limits</h2>" + Card("All models", "62% used") + Card("Sonnet only", "99% used") + Card("Usage credits", "100% used · $50"));
             Check(values.Last().Snapshot!.Windows is [{ Remaining: 63, DurationMinutes: 300 }, { Remaining: 38, DurationMinutes: 10080 }], "Visible session and all-model quotas exclude model-only and paid-credit cards");
+            await Load("<aside>" + Card("Current session", "99% used") + "</aside><div role='dialog'><h2>Plan usage limits</h2>"
+                + ModernRow("Current session", "0% used", "Starts when a message is sent") + "<h2>Weekly limits</h2>"
+                + ModernRow("All models", "13% used", "Resets Fri 2:00 PM") + ModernRow("Fable", "16% used", "Resets Fri 2:00 PM")
+                + "<h3>Cloud session credits</h3>" + ModernRow("Included credit", "$250 of $250 left", "Expires later") + "</div>");
+            Check(values.Last().Snapshot!.Windows is [{ Remaining: 100, DurationMinutes: 300 }, { Remaining: 87, DurationMinutes: 10080 }], "Current settings dialog reads deeply nested h5 quota rows and excludes Fable, sidebar and cloud credits");
+            await Load(Card("Current session", "Used 29%") + Card("All models", "87% remaining"));
+            Check(values.Last().Snapshot!.Windows is [{ Remaining: 71 }, { Remaining: 87 }], "Usage prefix and explicit remaining percentages keep their correct meaning");
+            await Load(Card("Current session", "<progress max='1' value='0.29'></progress>"));
+            Check(values.Last().Snapshot!.Windows.Single().Remaining == 71, "Native fractional progress is read as a quota percentage");
+            await Load(Card("Current session", "-5% used")); Check(values.Last().State == "unreadable", "Negative quota percentages are rejected rather than being read as positive");
+            await Load(Card("Current session", "20% used") + Card("Current session", "40% used"));
+            Check(values.Last().State == "unreadable", "Conflicting visible session rows cannot become a guessed quota");
             var count = values.Count; await browser.ObserveAsync(); Check(values.Count == count, "Unchanged polling cannot renew a stale observation");
             await Load(Card("Current session", "0% used")); Check(values.Last().Snapshot!.Windows.Single().Remaining == 100, "A genuinely reported zero usage is preserved");
             await Load(Card("Current session", "")); Check(values.Last().State == "unreadable", "Missing percentage never becomes zero usage");
@@ -268,6 +280,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
             await browser.ObserveAsync();
         }
         static string Card(string name, string value) => $"<section><h3>{name}</h3><p>{value}</p></section>";
+        static string ModernRow(string name, string value, string reset) => $"<div class='quota-row'><div><div><div><div><div><div><h5>{name}</h5></div></div></div></div></div><p>{reset}</p></div><div class='meter'></div><p>{value}</p></div>";
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); checks.Add("PASS " + name); }
     }
     [StructLayout(LayoutKind.Sequential)] private struct Rect { public int Left, Top, Right, Bottom; }

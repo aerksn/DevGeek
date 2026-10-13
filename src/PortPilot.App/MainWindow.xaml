@@ -26,7 +26,18 @@
     </DataTemplate>
     <Style x:Key="DenseStopButton" TargetType="Button" BasedOn="{StaticResource StopButton}">
       <Setter Property="Width" Value="36" /><Setter Property="Height" Value="32" /><Setter Property="Padding" Value="10,6" />
-      <Setter Property="FontSize" Value="12" /><Setter Property="Background" Value="#28F3C2D7" /><Setter Property="BorderBrush" Value="#65F3C2D7" />
+      <Setter Property="FontSize" Value="14" /><Setter Property="Foreground" Value="{StaticResource MutedBrush}" /><Setter Property="Background" Value="Transparent" /><Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="StopSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="StopSurface" Property="Background" Value="#18F3C2D7" /><Setter Property="Foreground" Value="{StaticResource RoseBrush}" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="StopSurface" Property="BorderBrush" Value="{StaticResource AccentBrush}" /></Trigger>
+          <Trigger Property="IsPressed" Value="True"><Setter TargetName="StopSurface" Property="Background" Value="#30F3C2D7" /></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="UsageButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
@@ -151,7 +162,7 @@
                     <Grid>
                       <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
                       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource PortRowTemplate}" VerticalAlignment="Center" />
-                      <Button x:Name="DenseStop" Grid.Column="1" Content="■" IsEnabled="{Binding CanStop}" Click="StopPort_Click" Style="{StaticResource DenseStopButton}" Margin="6,0,4,0" ToolTip="Stoppa hela processen eller containern, inklusive alla dess portar" AutomationProperties.Name="{Binding Name, StringFormat=Stoppa {0}}" />
+                      <Button x:Name="DenseStop" Grid.Column="1" Content="□" IsEnabled="{Binding CanStop}" Click="StopPort_Click" Style="{StaticResource DenseStopButton}" Margin="6,0,4,0" ToolTip="Stoppa hela processen eller containern, inklusive alla dess portar" AutomationProperties.Name="{Binding Name, StringFormat=Stoppa {0}}" />
                     </Grid>
                   </Border>
                 </DataTemplate>

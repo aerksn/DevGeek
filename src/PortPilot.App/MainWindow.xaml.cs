@@ -602,6 +602,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Check(launchesOpened && LaunchSection.Visibility == Visibility.Collapsed && DensePorts.IsVisible && ReferenceEquals(LaunchSection.DataContext, this),
             "Quick starts open in an owned dialog, keep their bindings and restore the compact window on close");
         VerifyProjectRows(Check);
+        material.VerifyModernBlur(Check);
         VerifyAssistantUsage(Check);
         await VerifyAppearanceAsync(Check);
         return string.Join(Environment.NewLine, checks);

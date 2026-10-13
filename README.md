@@ -2,7 +2,7 @@
 
 <img src="assets/devgeek.png" width="88" alt="DevGeek icon">
 
-En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Svenskt, minimalistiskt gränssnitt med frostat glas, dämpade plommonfärger, ljusblå accenter och mjukt rosa stoppknappar. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
+En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Svenskt, minimalistiskt gränssnitt med frostat glas, dämpade plommonfärger, ljusblå accenter och diskreta stoppknappar med kontursymbol. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
 
 ## Starta
 
@@ -10,7 +10,7 @@ Kör `build.ps1` och dubbelklicka på **app/DevGeek.exe**. Den färdigbyggda Win
 
 1. Portlistan uppdateras automatiskt varannan sekund. **Bara utveckling** visar välkända runtime-processer som Node, Bun, Deno, Python och .NET samt Docker-portar. Avmarkera för att se alla lokala lyssnande TCP-portar.
 2. Varje **process eller container visas som en grupp** med sina unika portar på samma rad. IPv4- och IPv6-bindningar för samma port visas en gång i sammanfattningen. Dubbelklick på en Node/Bun/Deno-tjänst som svarar över HTTP öppnar webbporten i standardwebbläsaren. Övriga tjänster öppnar en terminal i projektmappen. Håll musen över raden för detaljer.
-3. Gruppens rosa **stoppknapp** visar vilken process eller container och vilka portar som berörs innan stoppet utförs.
+3. Gruppens **stoppknapp** visar vilken process eller container och vilka portar som berörs innan stoppet utförs.
 4. Öppna **⌄ → Snabbstarter…** för att starta och hantera sparade kommandon i ett separat fönster. Lägg till en egen projektmapp och ett kommando, exempelvis `bun run dev`. Nya installationer börjar med en tom snabbstartslista.
 5. **Lägg till** och **Redigera** hanterar namn, arbetsmapp och kommando. Kommandon körs i bakgrunden via `cmd.exe /d /s /c`; exempelvis `bun run dev`, `npm run dev`, `dotnet watch` eller `docker compose up -d`.
 6. **Logg** visar kommandots utdata. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller uppdatering, utvecklingsfilter, fäst överst, snabbstarter och bakgrundsval. Codex/Claude ligger kvar i botten medan portarna scrollas.
@@ -67,7 +67,7 @@ Kvoterna är separata från **OpenAI API-saldot i USD**. Båda visas samtidigt. 
 
 Saldot visas i överraden. **Både OpenAI-loggan och beloppet är klickbara** och öppnar saldokopplingen. Den tomma ytan bredvid fungerar som dragyta. Den vanliga appen läser det sparade saldot från din egen Billing-session; saknade värden visas som väntande. Designförhandsvisningar märks uttryckligen **exempel** och läser inga konton. Saldoknappen öppnar då en informationsdialog med kontofunktionerna avstängda.
 
-Kompaktlägets stoppknappar har en tydlig rosa yta och kant, en klickyta på 36 × 32 px och extra inre padding. De stoppar fortfarande hela processgruppen efter samma bekräftelse som tidigare.
+Kompaktlägets stoppknappar har en diskret kontursymbol utan färgad platta i viloläget. Rosa markering visas när musen hålls över knappen och tangentbordsfokus har en tydlig kant. Klickytan på 36 × 32 px och extra inre padding behålls. Knappen stoppar hela processgruppen efter bekräftelse.
 
 ### Egen session i bakgrunden
 
@@ -92,6 +92,8 @@ Bakgrundsläsning, dold omhämtning och återställning efter fullständigt avsl
 Öppna **⌄** i överraden för verktyg och inställningar. Samma meny finns via högerklick på en tom yta eller kompaktlägets dragyta. **Bara utveckling** och **Fäst överst** visar sina aktuella lägen med bockar.
 
 Under **BAKGRUND** finns fem lägen: **Normal** använder DevGeeks standardbakgrund, **Opaque** är helt solid i vald färg, **Clear** är genomskinlig utan blur, **Blur** suddar bakomliggande innehåll och **Acrylic** använder Windows glasmaterial. Text och knappar behåller full opacitet. **Visa fönsterram** styr den tunna kanten.
+
+På Windows 11 22H2 och senare använder Blur samma fungerande DWM-backend för frostat glas som Acrylic. Den klassiska accent-blur-effekten används på äldre Windows-versioner. Den har begränsat stöd i nyare Windows 11, vilket även [TranslucentTB beskriver](https://github.com/TranslucentTB/TranslucentTB#features). DWM-materialet är [Desktop Acrylic](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwm_systembackdrop_type). Byten till Clear eller Opaque rensar den tidigare suddeffekten.
 
 **Färg och transparens…** har färgprover, hexkod, RGB-reglage och transparens för färgtonen. Ändringar förhandsvisas direkt. **Spara** behåller dem efter omstart; **Avbryt** återställer utseendet innan dialogen öppnades. Transparensreglaget gäller Clear, Blur och Acrylic. **Återställ utseende** återgår till Acrylic med den ursprungliga plommonfärgen.
 
@@ -156,6 +158,7 @@ Saldoläsarens fyra JavaScript-tester körs med Node: `node --test tests/OpenAiB
 - `src/PortPilot.App`: WPF-fönster, dialoger och loggvisning.
 - `tests/PortPilot.Tests`: körbara integrationstester utan externa testpaket.
 - `tests/OpenAiBalanceReader`: tester för appens inbäddade DOM-läsare.
+- `tests/ClaudeUsageReader`: tester för Claude-dialogens kvotfält, nästlade rubriker, procentformat och avgränsning från modellkvoter/krediter. Kör med `node --test tests/ClaudeUsageReader/reader.test.cjs`. Samma layoutfall verifieras också i riktig WebView2 med `--verify-claude-browser --test-root <egen testmapp> --report <rapportfil>`.
 
 Tekniska referenser: [Windows TCP-tabeller](https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getextendedtcptable), [Windows Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects), [Docker container ls](https://docs.docker.com/reference/cli/docker/container/ls/), [Docker inspect](https://docs.docker.com/reference/cli/docker/inspect/), [Docker restart](https://docs.docker.com/reference/cli/docker/container/restart/), [Windows Acrylic](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic), [DWM-systemmaterial](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwm_systembackdrop_type).
 

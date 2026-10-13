@@ -73,16 +73,18 @@ public sealed class WindowMaterial
         SetAccent(handle, 0);
         if (eligible)
         {
-            if (appearance.Mode == BackgroundMode.Acrylic && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621))
+            if (appearance.Mode is BackgroundMode.Blur or BackgroundMode.Acrylic && OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621))
             {
-                int acrylic = 3; // DWMSBT_TRANSIENTWINDOW: retain the proven caption fix.
+                // The classic accent blur reports success without blurring on newer Windows 11.
+                // Use the supported DWM frosted backdrop for both glass modes, retaining the caption fix.
+                int acrylic = 3; // DWMSBT_TRANSIENTWINDOW
                 IsAcrylic = IsTransparent = DwmSetWindowAttribute(handle, 38, ref acrylic, sizeof(int)) >= 0;
             }
             else if (appearance.Mode is BackgroundMode.Clear or BackgroundMode.Blur or BackgroundMode.Acrylic)
             {
                 int state = appearance.Mode == BackgroundMode.Clear ? 2 : appearance.Mode == BackgroundMode.Blur ? 3 : 4;
                 // Tint is applied once, in the WPF surface layer.
-                IsTransparent = SetAccent(handle, state, appearance.Mode == BackgroundMode.Acrylic ? 0x01000000u : 0u);
+                IsTransparent = SetAccent(handle, state, state == 4 ? 0x01000000u : 0u);
                 IsAcrylic = IsTransparent && appearance.Mode == BackgroundMode.Acrylic;
             }
         }
@@ -136,6 +138,29 @@ public sealed class WindowMaterial
         var frameHr = DwmGetWindowAttribute(handle, 1, out int frameEnabled, sizeof(int));
         var frame = framePolicyResult is { } result ? $"Custom frame policy HRESULT: 0x{result:X8}" : "Standard system caption";
         return $"{Status}\nWindows: {Environment.OSVersion.Version}\nBackdrop readback: {value} (HRESULT 0x{hr:X8})\n{frame}\nNative frame enabled: {frameEnabled != 0} (HRESULT 0x{frameHr:X8})\nWindow active: {window.IsActive}\nWindow state: {window.WindowState}\nWindow opacity: {window.Opacity}\nHigh contrast: {SystemParameters.HighContrast}\nTransparency preference: {TransparencyEnabled()}";
+    }
+
+    public void VerifyModernBlur(Action<bool, string> check)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621) || SystemParameters.HighContrast || !TransparencyEnabled()) return;
+        var enabled = Enabled; var appearance = Appearance;
+        try
+        {
+            Enabled = true; Appearance = appearance with { Mode = BackgroundMode.Blur }; Apply();
+            if (!IsTransparent)
+            {
+                check(!IsAcrylic && source?.CompositionTarget?.BackgroundColor.A == 255, "Unavailable native blur keeps an opaque fallback instead of pretending to be transparent");
+                return;
+            }
+            var hr = DwmGetWindowAttribute(source!.Handle, 38, out int backdrop, sizeof(int));
+            check(hr >= 0 && backdrop == 3 && IsTransparent && IsAcrylic, "Windows 11 Blur activates the DWM frosted backdrop instead of the ineffective classic accent blur");
+            var frameHr = DwmGetWindowAttribute(source.Handle, 1, out int nativeFrame, sizeof(int));
+            check(framePolicyResult == 0 && frameHr >= 0 && nativeFrame == 0, "Blur keeps the custom non-client policy that prevents the active caption stripe");
+            Appearance = appearance with { Mode = BackgroundMode.Clear }; Apply();
+            hr = DwmGetWindowAttribute(source.Handle, 38, out backdrop, sizeof(int));
+            check(hr >= 0 && backdrop == 1 && !IsAcrylic, "Switching from Blur to Clear removes the DWM blur backend");
+        }
+        finally { Enabled = enabled; Appearance = appearance; Apply(); }
     }
 
     private void ParametersChanged(object? sender, PropertyChangedEventArgs e)
