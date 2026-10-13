@@ -1,6 +1,6 @@
 # Otter Monitor
 
-<img src="assets/otter-logo.png" width="88" alt="Otter Monitor icon">
+<img src="assets/otter-mark.png" width="88" alt="Otter Monitor icon">
 
 En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Svenskt, minimalistiskt gränssnitt med frostat glas, dämpade plommonfärger, ljusblå accenter och diskreta stoppknappar med fylld symbol och svagt markerad yta. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
 
@@ -176,7 +176,7 @@ Appen hette tidigare PortPilot och DevGeek. Datamappen `%LOCALAPPDATA%\PortPilot
 
 ## Ikon
 
-Den medföljande utterloggan används som appens Windows-ikon. Originalbilden finns i `assets/otter-logo.png`, Windows-ikonen i `src/PortPilot.App/otter-monitor.ico`. Återskapa ICO med `python tools/build-icon.py` (Pillow krävs endast för detta verktyg).
+Appens logga är en orange utter med turkos fisk och transparent bakgrund, utformad med imagegen utifrån den medföljande referensbilden. Loggan finns i `assets/otter-mark.png`, referensen i `assets/otter-logo.png` och Windows-ikonen i `src/PortPilot.App/otter-monitor.ico`. Genereringsprompten finns i `assets/otter-mark.prompt.txt`. Återskapa ICO med `python tools/build-icon.py` (Pillow krävs endast för detta verktyg); transparensen bevaras i alla nio ikonstorlekar.
 
 ## Förhandsvisning
 
