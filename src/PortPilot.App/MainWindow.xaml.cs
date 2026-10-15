@@ -40,16 +40,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DateTime dockerChecked = DateTime.MinValue;
     private bool refreshing, dockerRefreshing, ready, closed;
     private bool developmentOnly = true;
-    private string status = "Läser aktiva portar…";
-    private DateTime actionUntil;
+    private bool scanned;
     private Dictionary<string, PortGroup> groupCache = [];
     public ObservableCollection<PortGroup> Ports { get; } = [];
     public ObservableCollection<QuickStart> QuickStarts { get; } = [];
-    public string Status { get => status; set { status = value; Changed(); } }
-    public string DockerStatus => docker.Status;
-    public int PortCount => CombinedPorts().Select(p => (p.Port, p.Protocol)).Distinct().Count();
-    public int ContainerCount => docker.ContainerCount;
-    public int LaunchCount => QuickStarts.Count;
+    /// <summary>Quick starts that own no listed port: shown as their own rows under the ports.</summary>
+    public ObservableCollection<QuickStart> LaunchRows { get; } = [];
+    private readonly Dictionary<(string Group, Guid Run), bool> jobMembership = [];
+    private readonly Dictionary<string, QuickStart> previewLaunches = [];
+    private Editor? editor;
+    public Editor CurrentEditor => editor ??= Editor.Resolve(settings.Editor);
+    public string EditorActionLabel => "Öppna i " + CurrentEditor.Name;
     private string AccountBalanceLabel => !settings.OpenAiBalanceEnabled ? "OpenAI · koppla" : (balanceError is null ? balance : balance is null ? null : balance with { State = "unreadable" })?.Label(DateTime.UtcNow) ?? "OpenAI · väntar";
     public string BalanceLabel => AccountBalanceLabel + (preview ? " · exempel" : "");
     public string BalanceHint => preview ? "Designförhandsvisning med exempeldata. Detta är inte ditt kontos saldo. Öppna app/OtterMonitor.exe för din sparade saldokoppling. Klicka på loggan eller beloppet för information."
@@ -66,6 +67,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent(); DataContext = this;
         material = new(this, enabled: !preview, hasTintLayer: true);
         InitializeAppearance();
+        EmptyMascot.Source = IconFrame(64);
         foreach (var entry in settings.QuickStarts) QuickStarts.Add(entry);
         Topmost = !preview && settings.Topmost;
         UpdatePin(); ConfigureCompactWindow();
@@ -75,12 +77,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RefreshBalance();
             _ = RefreshAssistantUsageAsync();
             foreach (var entry in QuickStarts) entry.Refresh();
+            TrackLaunchNotices(); TrackQuotaNotices();
             await RefreshPortsAsync();
             if (DateTime.UtcNow - dockerChecked > TimeSpan.FromSeconds(10)) _ = RefreshDockerAsync();
         };
-        Loaded += async (_, _) => { if (!preview) { RefreshBalance(); _ = RefreshAssistantUsageAsync(); if (settings.OpenAiBalanceEnabled) _ = StartBackgroundBalanceAsync(); RestoreLaunches(); timer.Start(); _ = RefreshDockerAsync(); await RefreshPortsAsync(); } };
+        Loaded += async (_, _) => { if (!preview) { RefreshBalance(); _ = RefreshAssistantUsageAsync(); if (settings.OpenAiBalanceEnabled) _ = StartBackgroundBalanceAsync(); RestoreLaunches(); StartTray(); timer.Start(); _ = RefreshDockerAsync(); await RefreshPortsAsync(); } };
         Closing += OnClosing;
-        Closed += (_, _) => { closed = true; timer.Stop(); telemetryStop.Cancel(); serviceProbe.Dispose(); billingBrowser?.Dispose(); claudeBrowser?.Dispose(); foreach (var entry in QuickStarts) entry.Session?.Dispose(); };
+        // Logging off or shutting down must exit, never hide to the tray.
+        if (Application.Current is { } app) app.SessionEnding += (_, _) => exitRequested = true;
+        Closed += (_, _) => { closed = true; timer.Stop(); telemetryStop.Cancel(); serviceProbe.Dispose(); billingBrowser?.Dispose(); claudeBrowser?.Dispose(); foreach (var entry in QuickStarts) entry.Session?.Dispose(); tray?.Dispose(); tray = null; };
     }
 
     private void RefreshBalance()
@@ -154,7 +159,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var entry in QuickStarts)
         {
             try { entry.Session = launches.Restore(entry); }
-            catch (Exception ex) { entry.RecoveryError = ex.Message; SetStatus("Kunde inte återansluta " + entry.Name + ": " + ex.Message); }
+            catch (Exception ex) { entry.RecoveryError = ex.Message; SetStatus("Kunde inte återansluta " + entry.Name + ": " + ex.Message, problem: true); }
             entry.Refresh();
         }
         var running = QuickStarts.Count(q => q.Session?.IsRunning == true);
@@ -176,12 +181,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             var result = await Task.Run(() => { var ports = portService.Scan(); return (Ports: ports, Resources: resourceMonitor.SampleProcesses(ports)); });
             if (closed) return;
-            nativePorts = result.Ports; processResources = result.Resources;
-            ApplyFilter(); Changed(nameof(PortCount));
+            nativePorts = result.Ports; processResources = result.Resources; scanned = true;
+            ApplyFilter();
             _ = RefreshProbesAsync();
-            if (DateTime.UtcNow > actionUntil) Status = $"Uppdaterad {DateTime.Now:HH:mm:ss}  ·  Automatiskt varannan sekund";
         }
-        catch (Exception ex) { SetStatus("Portavläsning misslyckades: " + ex.Message); }
+        catch (Exception ex) { SetStatus("Portavläsning misslyckades: " + ex.Message, problem: true); }
         finally { refreshing = false; }
     }
 
@@ -194,10 +198,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var result = await dockerService.ScanAsync();
             if (closed) return;
             docker = result;
-            Changed(nameof(DockerStatus)); Changed(nameof(ContainerCount)); Changed(nameof(PortCount)); ApplyFilter();
+            ApplyFilter();
             _ = RefreshProbesAsync();
         }
-        catch (Exception ex) { docker = new([], 0, "Docker · " + ex.Message); Changed(nameof(DockerStatus)); ApplyFilter(); }
+        catch (Exception ex) { docker = new([], 0, "Docker · " + ex.Message); ApplyFilter(); }
         finally { dockerChecked = DateTime.UtcNow; dockerRefreshing = false; }
     }
 
@@ -214,7 +218,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             var results = await Task.WhenAll(targets.Select(async target => (target.Key, target.Entries, Reading: await serviceProbe.MeasureAsync(target.Entries, telemetryStop.Token))));
             if (closed) return;
             foreach (var result in results)
-                if (groupCache.TryGetValue(result.Key, out var group) && group.Entries.SequenceEqual(result.Entries)) group.SetProbe(result.Reading);
+                if (groupCache.TryGetValue(result.Key, out var group) && group.Entries.SequenceEqual(result.Entries)) { group.SetProbe(result.Reading); TrackServiceNotices(group, result.Reading); }
+            UpdateTray();
         }
         catch (OperationCanceledException) { }
         catch (Exception) { if (!closed) foreach (var target in targets) if (groupCache.TryGetValue(target.Key, out var group)) group.SetProbe(new("Ej kontrollerad", ServiceTone.Neutral, null, "Statuskontrollen kunde inte slutföras. Försök uppdatera igen.", DateTime.UtcNow)); }
@@ -224,7 +229,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ApplyFilter()
     {
         if (!ready) return;
-        const string query = "";
+        var query = FilterBox.Text.Trim();
         var current = PortGroup.Create(CombinedPorts());
         var next = new Dictionary<string, PortGroup>();
         foreach (var group in current)
@@ -240,29 +245,69 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             else next[group.Key].RefreshTelemetry();
         }
         groupCache = next;
-        var filtered = next.Values.Where(p => (!developmentOnly || p.IsDevelopment) && p.Matches(query)).ToList();
-        // Keep the same group objects and expanded state during polling and search changes.
-        for (int i = Ports.Count - 1; i >= 0; i--) if (!filtered.Contains(Ports[i])) Ports.RemoveAt(i);
-        for (int i = 0; i < filtered.Count; i++)
-        {
-            var index = Ports.IndexOf(filtered[i]);
-            if (index < 0) Ports.Insert(i, filtered[i]);
-            else if (index != i) Ports.Move(index, i);
-        }
-        DenseEmptyPorts.Visibility = Ports.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        LinkLaunches(next.Values);
+        // A search looks through every listening port, also outside the development filter.
+        var filtered = next.Values.Where(p => (query.Length > 0 || !developmentOnly || p.IsDevelopment) && p.Matches(query)).ToList();
+        Sync(Ports, filtered);
+        Sync(LaunchRows, QuickStarts.Where(q => !q.OwnsPorts && q.Matches(query)).ToList());
+        UpdateEmptyState(query);
         EmptyLaunches.Visibility = QuickStarts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateTray();
     }
 
-    private void SetStatus(string message) { actionUntil = DateTime.UtcNow.AddSeconds(15); Status = message; }
-    private void Error(Exception ex) { SetStatus(ex.Message); Dialogs.Info(this, "Det gick inte att slutföra", ex.Message); }
-    private void Filter_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
+    // Keep the same row objects (and their focus and hover state) during polling and search changes.
+    private static void Sync<T>(ObservableCollection<T> target, List<T> wanted)
+    {
+        for (int i = target.Count - 1; i >= 0; i--) if (!wanted.Contains(target[i])) target.RemoveAt(i);
+        for (int i = 0; i < wanted.Count; i++)
+        {
+            var index = target.IndexOf(wanted[i]);
+            if (index < 0) target.Insert(i, wanted[i]);
+            else if (index != i) target.Move(index, i);
+        }
+    }
+
+    /// <summary>Marks each process whose Windows job belongs to a running quick start. Docker containers are never claimed.</summary>
+    private void LinkLaunches(IEnumerable<PortGroup> groups)
+    {
+        var running = QuickStarts.Where(q => q.Session is { } session && IsAlive(session)).ToList();
+        var owners = new HashSet<QuickStart>();
+        foreach (var group in groups)
+        {
+            QuickStart? owner = null;
+            if (preview) previewLaunches.TryGetValue(group.Key, out owner);
+            else if (!group.IsDocker && group.Entries[0].StartedUtc is not null)
+                owner = running.FirstOrDefault(q => OwnsProcess(q.Session!, group));
+            group.Launch = owner;
+            if (owner is not null) owners.Add(owner);
+        }
+        foreach (var entry in QuickStarts) entry.OwnsPorts = owners.Contains(entry);
+    }
+
+    private bool OwnsProcess(LaunchSession session, PortGroup group)
+    {
+        var key = (group.Key, session.Record.RunId);
+        if (jobMembership.TryGetValue(key, out var member)) return member;
+        if (jobMembership.Count > 512) jobMembership.Clear();
+        return jobMembership[key] = session.Contains(group.Entries[0].Pid);
+    }
+
+    private static bool IsAlive(LaunchSession session)
+    {
+        try { return session.IsRunning; }
+        catch (System.ComponentModel.Win32Exception) { return false; }
+    }
+
+    private void Error(Exception ex) => Dialogs.Info(this, "Det gick inte att slutföra", ex.Message);
     private void DevOnly_Click(object sender, RoutedEventArgs e) { developmentOnly = ((MenuItem)sender).IsChecked; ApplyFilter(); }
     private async void Refresh_Click(object sender, RoutedEventArgs e) { if (preview) return; _ = RefreshDockerAsync(); await RefreshPortsAsync(); }
 
     private async void StopPort_Click(object sender, RoutedEventArgs e)
     {
-        var group = (sender as Button)?.DataContext as PortGroup;
+        var group = (sender as FrameworkElement)?.DataContext as PortGroup;
         if (preview || group is null || !group.CanStop || group.StopTarget is not { } entry) return;
+        // A process started by a quick start is stopped together with its whole job, so a watcher cannot restart it.
+        if (group.Launch is { IsRunning: true } launch) { await StopLaunchAsync(launch); return; }
         var description = entry.IsDocker
             ? $"Stoppa containern {entry.Name}?\n\nPortar: {group.PortSummary}\n\nAlla portar från den här containern stängs. Docker får upp till 10 sekunder att avsluta den."
             : $"Avsluta {entry.DisplayName} ({entry.Name}, PID {entry.Pid}) och dess underprocesser?\n\nPortar: {group.PortSummary}\n\nAlla portar som processen använder stängs. Pågående arbete i processen avbryts. En extern watcher kan starta den igen.";
@@ -279,9 +324,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         finally { portActions.Remove(group.Key); group.IsStopping = false; ApplyFilter(); }
     }
 
-    private async void RestartPort_Click(object sender, RoutedEventArgs e)
+    private async void RestartContainer(PortGroup group)
     {
-        if (preview || sender is not Button { DataContext: PortGroup group } || !group.CanRestart || group.StopTarget is not { } entry) return;
+        if (preview || !group.CanRestart || group.StopTarget is not { } entry) return;
         if (!Dialogs.Confirm(this, "Starta om " + entry.Name,
             $"Starta om containern {entry.Name}?\n\nPortar: {group.PortSummary}\n\nContainern stoppas och startas igen. Anslutningar bryts under omstarten.", "Starta om")) return;
         portActions.Add(group.Key); group.IsStopping = true;
@@ -302,16 +347,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Add_Click(object sender, RoutedEventArgs e)
     {
         if (preview) return;
+        appearanceMenu.IsOpen = false;
         var dialog = new QuickStartDialog { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is null) return;
         QuickStarts.Add(dialog.Result);
         if (!Save()) QuickStarts.Remove(dialog.Result);
-        Changed(nameof(LaunchCount)); ApplyFilter();
+        else SetStatus($"Lade till {dialog.Result.Name}. Starta den med ▶ i listan.");
+        ApplyFilter();
     }
 
     private void Edit_Click(object sender, RoutedEventArgs e)
     {
-        if (preview || sender is not Button { DataContext: QuickStart entry }) return;
+        if (preview || RowLaunch(sender) is not { } entry) return;
         if (!entry.CanEdit) { Dialogs.Info(this, "Snabbstarten är upptagen", "Återanslut och stoppa snabbstarten innan du redigerar den."); return; }
         var dialog = new QuickStartDialog(entry) { Owner = this };
         if (dialog.ShowDialog() != true) return;
@@ -320,13 +367,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (dialog.Result is not null) { dialog.Result.Session = entry.Session; QuickStarts[index] = dialog.Result; }
         if (!Save()) { if (dialog.DeleteRequested) QuickStarts.Insert(index, entry); else QuickStarts[index] = entry; }
         else if (dialog.DeleteRequested) entry.Session?.Dispose();
-        Changed(nameof(LaunchCount)); ApplyFilter();
+        ApplyFilter();
     }
 
     private async void Launch_Click(object sender, RoutedEventArgs e)
     {
-        if (preview || sender is not Button { DataContext: QuickStart entry } || !entry.CanAct) return;
-        entry.Operation = "Arbetar…"; entry.IsBusy = true;
+        if (preview || RowLaunch(sender) is not { CanAct: true } entry) return;
+        if (entry.RecoveryError is null && entry.IsRunning) { await StopLaunchAsync(entry); return; }
+        entry.Operation = "Startar…"; entry.IsBusy = true;
         try
         {
             if (entry.RecoveryError is not null)
@@ -335,29 +383,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 SetStatus(entry.Session?.IsRunning == true ? "Återanslöt " + entry.Name + "." : "Körningen är avslutad. Du kan starta igen.");
                 return;
             }
-            if (entry.Session?.IsRunning == true)
-            {
-                if (!Dialogs.Confirm(this, "Stoppa " + entry.Name, "Kommandot och alla processer som det startade avslutas. Pågående arbete i processerna avbryts.", "Stoppa")) return;
-                entry.Operation = "Stoppar…"; entry.Refresh();
-                await entry.Session.StopAsync(); SetStatus("Stoppade " + entry.Name + ".");
-            }
-            else
-            {
-                entry.Session?.Dispose(); entry.Session = null;
-                // Save the ID before launch as well, including the first default quick start.
-                if (!Save()) return;
-                entry.Session = launches.Start(entry);
-                SetStatus("Startade " + entry.Name + ". Öppna Logg för utdata.");
-            }
+            entry.Session?.Dispose(); entry.Session = null;
+            // Save the ID before launch as well, including the first default quick start.
+            if (!Save()) return;
+            entry.Session = launches.Start(entry);
+            SetStatus("Startade " + entry.Name + ". Raden flyttar upp bland portarna när servern lyssnar.");
             entry.Refresh(); await RefreshPortsAsync();
         }
         catch (Exception ex) { Error(ex); }
-        finally { entry.IsBusy = false; }
+        finally { entry.IsBusy = false; ApplyFilter(); }
     }
 
-    private async void RestartLaunch_Click(object sender, RoutedEventArgs e)
+    private async Task StopLaunchAsync(QuickStart entry)
     {
-        if (preview || sender is not Button { DataContext: QuickStart entry } || !entry.CanRestart) return;
+        if (entry.IsBusy || entry.Session is not { } session) return;
+        if (!Dialogs.Confirm(this, "Stoppa " + entry.Name, "Kommandot och alla processer som det startade avslutas. Pågående arbete i processerna avbryts.", "Stoppa")) return;
+        entry.Operation = "Stoppar…"; entry.IsBusy = true;
+        try
+        {
+            await session.StopAsync(); SetStatus("Stoppade " + entry.Name + ".");
+            entry.Refresh(); await RefreshPortsAsync();
+        }
+        catch (Exception ex) { Error(ex); }
+        finally { entry.IsBusy = false; ApplyFilter(); }
+    }
+
+    private void RestartLaunch_Click(object sender, RoutedEventArgs e) { if (RowLaunch(sender) is { } entry) RestartLaunch(entry); }
+
+    private async void RestartLaunch(QuickStart entry)
+    {
+        if (preview || !entry.CanRestart) return;
         if (!Dialogs.Confirm(this, "Starta om " + entry.Name,
             "Kommandot och dess underprocesser avslutas. Sedan körs samma kommando igen i samma arbetsmapp.", "Starta om")) return;
         entry.Operation = "Startar om…"; entry.IsBusy = true;
@@ -368,14 +423,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await RefreshPortsAsync();
         }
         catch (Exception ex) { Error(ex); }
-        finally { entry.IsBusy = false; }
+        finally { entry.IsBusy = false; ApplyFilter(); }
     }
 
-    private void Log_Click(object sender, RoutedEventArgs e)
+    private void Log_Click(object sender, RoutedEventArgs e) { if (!preview && RowLaunch(sender) is { } entry) ShowLaunchLog(entry); }
+
+    private void ShowLaunchLog(QuickStart entry)
     {
-        if (preview || sender is not Button { DataContext: QuickStart entry }) return;
         if (entry.Session is null) { Dialogs.Info(this, "Ingen logg ännu", "Starta kommandot för att se dess utdata här."); return; }
-        new LogWindow(entry) { Owner = this }.Show();
+        ShowLog("launch|" + entry.Id, () => LogWindow.ForQuickStart(entry));
+    }
+
+    // One log window per quick start or container; asking again brings the open one forward.
+    private void ShowLog(string key, Func<LogWindow> create)
+    {
+        if (OwnedWindows.OfType<LogWindow>().FirstOrDefault(window => Equals(window.Tag, key)) is { } open) { open.Activate(); return; }
+        var window = create(); window.Tag = key; window.Owner = this; window.Show();
     }
 
     private bool Save()
@@ -392,18 +455,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     private void ConfigureCompactWindow()
     {
-        settings.Compact = true; // Ignore the retired view setting in older saved configurations.
+        // Fixed layout lives in XAML; this restores the size after a manual resize.
         SizeToContent = SizeToContent.Manual;
-        MinWidth = 300; MinHeight = 166; MaxHeight = 342;
+        MinWidth = 300; MinHeight = 166;
         Width = 360; Height = 166;
-        DensePorts.Visibility = Visibility.Visible;
-        ToolbarRow.Height = new GridLength(30);
-        BodyRow.Height = new GridLength(1, GridUnitType.Star); BodyRow.MinHeight = 0;
-        Toolbar.Margin = new Thickness(4, 0, 4, 0); ToolbarGap.Width = new GridLength(4);
-        CompactDragArea.Visibility = Visibility.Visible;
-        foreach (var button in new[] { DropdownButton, MinimizeButton, CloseButton }) button.Style = (Style)FindResource("DenseIconButton");
-        DropdownButton.Margin = MinimizeButton.Margin = new Thickness(0, 0, 2, 0);
-        if (WindowChrome.GetWindowChrome(this) is { } chrome) chrome.CaptionHeight = 28;
         SizeToContent = SizeToContent.Height; LayoutAssistantUsage(); ApplyFilter();
     }
 
@@ -429,7 +484,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (preview) return;
         if (closingBilling) { e.Cancel = true; return; }
         if (billingCloseReady) return;
-        if (QuickStarts.Any(q => q.IsBusy) || portActions.Count > 0) { e.Cancel = true; SetStatus("Vänta tills den pågående åtgärden är klar innan du stänger."); return; }
+        if (HideToTray(e)) return;
+        if (QuickStarts.Any(q => q.IsBusy) || portActions.Count > 0) { e.Cancel = true; SetStatus("Vänta tills den pågående åtgärden är klar innan du stänger.", problem: true); return; }
         if (QuickStarts.Any(q => q.Session?.IsRunning == true) && !Dialogs.Confirm(this, "Stäng Otter Monitor?", "Dina startade processer fortsätter att köras. Otter Monitor återansluter snabbstarterna nästa gång appen öppnas.\n\nVill du stoppa en hel snabbstart, välj Avbryt och Stoppa först.", "Stäng")) { e.Cancel = true; return; }
         Save();
         if (billingBrowser is not null || claudeBrowser is not null)
@@ -446,7 +502,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         settings.OpenAiBalanceEnabled = true;
         balance = new(24.50m, DateTime.UtcNow, DateTime.UtcNow, "ok");
         Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
-        Status = "Förhandsvisning · Exempeldata, inga kommandon körs";
+        scanned = true;
         docker = new([], 0, "Docker · förhandsvisning");
         if (!empty)
         {
@@ -455,8 +511,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             previewPorts.AddRange(PreviewContainerBindings());
             docker = new(previewPorts, 2, "Docker Desktop · 2 containrar · förhandsvisning");
             QuickStarts.Add(new() { Name = "Starta dev miljö", Directory = @"C:\repos\demo-app", Command = "bun run dev" });
+            // Preview has no real jobs; link the demo-app process to a quick start the way job membership would.
+            var linked = new QuickStart { Name = "demo-app dev", Directory = @"C:\repos\demo-app", Command = "bun run dev" };
+            QuickStarts.Add(linked);
+            previewLaunches[PortGroup.OwnerKey(nativePorts[0])] = linked;
         }
-        ApplyFilter(); Changed(nameof(PortCount)); Changed(nameof(ContainerCount)); Changed(nameof(LaunchCount)); Changed(nameof(DockerStatus));
+        ApplyFilter();
         if (!empty) SetPreviewTelemetry();
         if (!empty) LoadUsagePreview();
     }
@@ -481,15 +541,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         select new PortEntry(port, address, 0, "demo-backend-1", "Docker", null,
             ContainerId: "preview-backend", DockerEndpoint: "npipe://./pipe/docker_engine", ContainerPort: port);
 
-    public void LoadGroupExamplePreview(bool expanded)
+    public void LoadGroupExamplePreview()
     {
         if (!preview) return;
         nativePorts = [];
         docker = new(PreviewContainerBindings().ToList(), 1, "Docker · 1 container · förhandsvisning");
         ApplyFilter();
         SetPreviewTelemetry();
-        Ports[0].IsExpanded = expanded;
-        Changed(nameof(PortCount)); Changed(nameof(ContainerCount)); Changed(nameof(DockerStatus));
     }
 
     public async Task<string> VerifyPreviewControlsAsync()
@@ -511,9 +569,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Check(!quickStart.CanAct && !quickStart.CanRestart && !quickStart.CanEdit, "Quick start disables overlapping actions");
         quickStart.IsBusy = false;
         Check(quickStart.CanAct && quickStart.CanEdit && !quickStart.CanRestart, "Idle quick start enables start and edit only");
-        backend.IsExpanded = true; ApplyFilter();
-        Check(ReferenceEquals(backend, Ports.Single(p => p.Key == backend.Key)) && backend.IsExpanded, "Expanded details survive refresh");
-        backend.IsExpanded = false;
+        ApplyFilter();
+        Check(ReferenceEquals(backend, Ports.Single(p => p.Key == backend.Key)), "Rows keep their group objects across refreshes");
         nativePorts.Add(new(443, "127.0.0.1", 9999, "other-service", "TCP", null));
         ApplyFilter(); Check(Ports.Count == 5, "Development filter excludes unknown service");
         var devItem = appearanceMenu.Items.OfType<MenuItem>().Single(item => item.Tag is "development");
@@ -560,12 +617,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         balance = new(24.50m, DateTime.UtcNow, DateTime.UtcNow, "ok"); Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
         var isolatedBalancePath = Path.Combine(Path.GetTempPath(), "PortPilot-balance-binding-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(isolatedBalancePath);
-        var accountWindow = new MainWindow(new SettingsStore(isolatedBalancePath), new Settings { Compact = false, QuickStarts = [], OpenAiBalanceEnabled = true }, false);
+        var accountWindow = new MainWindow(new SettingsStore(isolatedBalancePath), new Settings { QuickStarts = [], OpenAiBalanceEnabled = true }, false);
         try
         {
             accountWindow.RefreshBalance();
-            Check(accountWindow.settings.Compact && accountWindow.Width == 360 && accountWindow.MinWidth == 300,
-                "An older saved standard-mode preference always opens the compact layout");
+            Check(accountWindow.Width == 360 && accountWindow.MinWidth == 300, "A production window opens in the compact layout");
             Check(accountWindow.BalanceLabel == "OpenAI · väntar", "Production mode with no stored balance never displays the preview amount");
             new BalanceStore(isolatedBalancePath).Apply(new(1, "ok", "73.21", "USD"), DateTime.UtcNow);
             accountWindow.RefreshBalance();
@@ -585,7 +641,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DenseScroll.ScrollToTop();
         nativePorts.RemoveAll(p => p.Pid >= 55600 && p.Pid < 55640); ApplyFilter();
         ConfigureCompactWindow(); UpdateLayout();
-        Check(settings.Compact && Width == 360 && DensePorts.IsVisible
+        Check(Width == 360 && DensePorts.IsVisible
             && !appearanceMenu.Items.OfType<MenuItem>().Any(item => item.Tag is "view"), "Only the compact layout exists and the dropdown offers no view switch");
         Check(appearanceMenu.Items.OfType<MenuItem>().Any(item => item.Tag is "quickstarts"), "Quick starts remain accessible from the compact dropdown");
         var launchesOpened = false;
@@ -602,6 +658,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Check(launchesOpened && LaunchSection.Visibility == Visibility.Collapsed && DensePorts.IsVisible && ReferenceEquals(LaunchSection.DataContext, this),
             "Quick starts open in an owned dialog, keep their bindings and restore the compact window on close");
         VerifyProjectRows(Check);
+        VerifyLaunchRowsAndFilter(Check);
+        VerifyFeedback(Check);
         material.VerifyModernBlur(Check);
         VerifyAssistantUsage(Check);
         await VerifyAppearanceAsync(Check);

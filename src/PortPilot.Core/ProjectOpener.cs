@@ -41,13 +41,13 @@ public static class ProjectOpener
         return shell;
     }
 
-    public static ProcessStartInfo ZedStart(string directory, string executable)
+    public static ProcessStartInfo EditorStart(string directory, string executable)
     {
         directory = RequireDirectory(directory);
-        var zed = new ProcessStartInfo(executable) { UseShellExecute = false, WorkingDirectory = directory, CreateNoWindow = true };
-        // Respect Zed's configured behavior for opening an existing or new project.
-        zed.ArgumentList.Add(directory);
-        return zed;
+        var editor = new ProcessStartInfo(executable) { UseShellExecute = false, WorkingDirectory = directory, CreateNoWindow = true };
+        // Respect the editor's own configured behavior for opening an existing or new project.
+        editor.ArgumentList.Add(directory);
+        return editor;
     }
 
     public static void OpenTerminal(string directory)
@@ -57,32 +57,75 @@ public static class ProjectOpener
         catch (Win32Exception) when (executable is not null) { using var process = Process.Start(TerminalStart(directory, null)); }
     }
 
-    public static void OpenZed(string directory)
+    public static void OpenEditor(string directory, Editor editor)
     {
-        var executable = FindExecutable("zed.exe",
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Zed", "bin", "zed.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Zed", "bin", "zed.exe"));
-        if (executable is null) throw new InvalidOperationException("Zed hittades inte. Installera Zed eller lägg dess bin-mapp i PATH och starta om Otter Monitor.");
-        using var process = Process.Start(ZedStart(directory, executable));
+        var executable = editor.Find() ?? throw new InvalidOperationException($"{editor.Name} hittades inte. Installera {editor.Name} eller välj en annan editor under ⌄ → Editor.");
+        using var process = Process.Start(EditorStart(directory, executable));
     }
 
     private static string RequireDirectory(string directory) => LocalDirectory(directory)
         ?? throw new DirectoryNotFoundException("Projektmappen finns inte längre eller är inte en lokal Windows-mapp.");
 
-    private static string? FindExecutable(string name, params string[] knownPaths)
+    internal static string? FindExecutable(string name, params string[] knownPaths)
     {
         foreach (var path in knownPaths) if (File.Exists(path)) return path;
+        return PathFolders().Select(folder => Path.Combine(folder, name)).FirstOrDefault(File.Exists);
+    }
+
+    internal static IEnumerable<string> PathFolders()
+    {
         foreach (var folder in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
         {
-            try
-            {
-                var path = folder.Trim().Trim('"');
-                if (!Path.IsPathFullyQualified(path)) continue;
-                path = Path.Combine(path, name);
-                if (File.Exists(path)) return path;
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException) { }
+            string path;
+            try { path = folder.Trim().Trim('"'); if (!Path.IsPathFullyQualified(path)) continue; }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException) { continue; }
+            yield return path;
+        }
+    }
+}
+
+/// <summary>Editors started directly by their own .exe with the project folder as a single argument; never through a shell.</summary>
+public sealed record Editor(string Id, string Name, Func<string?> Find)
+{
+    private static string Local(params string[] parts) => Path.Combine([Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), .. parts]);
+    private static string Programs(params string[] parts) => Path.Combine([Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), .. parts]);
+
+    public static readonly IReadOnlyList<Editor> All =
+    [
+        new("zed", "Zed", () => ProjectOpener.FindExecutable("zed.exe", Local("Programs", "Zed", "bin", "zed.exe"), Programs("Zed", "bin", "zed.exe"))),
+        new("code", "VS Code", () => ProjectOpener.FindExecutable("Code.exe", Local("Programs", "Microsoft VS Code", "Code.exe"), Programs("Microsoft VS Code", "Code.exe"))
+            ?? FromLauncher("code.cmd", "Code.exe")),
+        new("cursor", "Cursor", () => ProjectOpener.FindExecutable("Cursor.exe", Local("Programs", "cursor", "Cursor.exe"), Programs("Cursor", "Cursor.exe"))
+            ?? FromLauncher("cursor.cmd", "Cursor.exe")),
+        new("rider", "Rider", () => ProjectOpener.FindExecutable("rider64.exe", Local("Programs", "Rider", "bin", "rider64.exe"))
+            ?? Newest(Programs("JetBrains"), "JetBrains Rider*", "bin", "rider64.exe")),
+    ];
+
+    public static Editor? ById(string? id) => All.FirstOrDefault(editor => string.Equals(editor.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The saved choice, else the first installed editor (Zed first, as before), else Zed so the error names something.</summary>
+    public static Editor Resolve(string? id) => ById(id) ?? All.FirstOrDefault(editor => editor.Find() is not null) ?? All[0];
+
+    // VS Code and Cursor put a .cmd launcher in PATH; start the real .exe found above it instead of running a batch file.
+    private static string? FromLauncher(string launcher, string executable)
+    {
+        foreach (var folder in ProjectOpener.PathFolders())
+        {
+            if (!File.Exists(Path.Combine(folder, launcher))) continue;
+            var directory = new DirectoryInfo(folder);
+            for (var level = 0; directory is not null && level < 4; level++, directory = directory.Parent)
+                if (File.Exists(Path.Combine(directory.FullName, executable))) return Path.Combine(directory.FullName, executable);
         }
         return null;
+    }
+
+    private static string? Newest(string root, string pattern, params string[] tail)
+    {
+        try
+        {
+            return Directory.Exists(root) ? Directory.GetDirectories(root, pattern).OrderDescending(StringComparer.OrdinalIgnoreCase)
+                .Select(folder => Path.Combine([folder, .. tail])).FirstOrDefault(File.Exists) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
     }
 }

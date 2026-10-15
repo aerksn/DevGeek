@@ -127,7 +127,37 @@ public sealed class DockerService
         await RunAsync(["--host", entry.DockerEndpoint, "container", "restart", "--timeout", "10", entry.ContainerId], 30);
     }
 
-    private static async Task<string> RunAsync(IEnumerable<string> args, int seconds)
+    public static async Task<string> LogsAsync(PortEntry entry, int tail = 400)
+    {
+        if (!entry.IsDocker || string.IsNullOrWhiteSpace(entry.ContainerId) || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException("Ingen lokal Docker-container är vald.");
+        var (output, error) = await RunCoreAsync(["--host", entry.DockerEndpoint, "logs", "--timestamps", "--tail", tail.ToString(CultureInfo.InvariantCulture), entry.ContainerId], 15);
+        return MergeLogs(output, error);
+    }
+
+    /// <summary>docker logs splits the container's stdout and stderr; their timestamps restore one chronological stream.</summary>
+    public static string MergeLogs(string stdout, string stderr)
+    {
+        static (DateTimeOffset? Time, string Text)[] Lines(string text) => text.Split('\n').Select(line => line.TrimEnd('\r')).Where(line => line.Length > 0).Select(line =>
+        {
+            var space = line.IndexOf(' ');
+            return space > 0 && DateTimeOffset.TryParse(line[..space], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var time)
+                ? ((DateTimeOffset?)time, line[(space + 1)..]) : (null, line);
+        }).ToArray();
+        var a = Lines(stdout); var b = Lines(stderr);
+        var merged = new List<string>(a.Length + b.Length);
+        int i = 0, j = 0;
+        while (i < a.Length || j < b.Length)
+        {
+            var takeA = j >= b.Length || i < a.Length && (a[i].Time is null || b[j].Time is null || a[i].Time <= b[j].Time);
+            var (time, text) = takeA ? a[i++] : b[j++];
+            merged.Add((time is { } t ? t.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "  " : "") + Regex.Replace(text, @"\x1B\[[0-?]*[ -/]*[@-~]", ""));
+        }
+        return string.Join(Environment.NewLine, merged);
+    }
+
+    private static async Task<string> RunAsync(IEnumerable<string> args, int seconds) => (await RunCoreAsync(args, seconds)).Output;
+
+    private static async Task<(string Output, string Error)> RunCoreAsync(IEnumerable<string> args, int seconds)
     {
         var start = new ProcessStartInfo("docker") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.Environment.Remove("DOCKER_CONTEXT");
@@ -145,6 +175,6 @@ public sealed class DockerService
         var result = await output;
         var errorText = await error;
         if (process.ExitCode != 0) throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ? "Docker-kommandot misslyckades." : errorText.Trim());
-        return result;
+        return (result, errorText);
     }
 }

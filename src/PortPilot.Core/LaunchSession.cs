@@ -100,6 +100,14 @@ public sealed class LaunchSession : IDisposable
         }
     }
 
+    // A process can never leave its job, so membership is a stable ownership fact for that PID lifetime.
+    public bool Contains(int pid)
+    {
+        if (job is null || pid <= 4) return false;
+        using var target = Native.OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+        return !target.IsInvalid && Native.IsProcessInJob(target, job, out var member) && member;
+    }
+
     public void Stop()
     {
         if (job is null) return;
@@ -156,5 +164,7 @@ public sealed class LaunchSession : IDisposable
         [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool TerminateJobObject(SafeFileHandle job, uint exitCode);
         [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, out Accounting info, int length, IntPtr returnedLength);
         [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool GetExitCodeProcess(SafeFileHandle process, out uint exitCode);
+        [DllImport("kernel32.dll", SetLastError = true)] internal static extern SafeFileHandle OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
+        [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool IsProcessInJob(SafeFileHandle process, SafeFileHandle job, [MarshalAs(UnmanagedType.Bool)] out bool result);
     }
 }

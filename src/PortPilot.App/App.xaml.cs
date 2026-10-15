@@ -86,7 +86,14 @@ public partial class App : Application
         if (!preview && !capture)
         {
             instance = new Mutex(true, "Local\\PortPilot.Desktop", out var first);
-            if (!first) { MessageBox.Show("Otter Monitor körs redan. Du hittar fönstret i aktivitetsfältet.", "Otter Monitor"); Shutdown(); return; }
+            if (!first)
+            {
+                // The first instance may be hidden in the notification area; ask it to show itself.
+                if (EventWaitHandle.TryOpenExisting(ShowEventName, out var existing)) using (existing) existing.Set();
+                else MessageBox.Show("Otter Monitor körs redan. Du hittar ikonen i systemfältet.", "Otter Monitor");
+                Shutdown(); return;
+            }
+            showRequests = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         }
         var store = new SettingsStore(SettingsStore.DefaultDirectory);
         Settings settings;
@@ -112,7 +119,8 @@ public partial class App : Application
                 main.Left = -16000; main.Top = -16000; main.ShowInTaskbar = false; main.ShowActivated = false;
             }
             if (preview) main.LoadPreview(e.Args.Contains("--empty"));
-            if (preview && e.Args.Contains("--group-example")) main.LoadGroupExamplePreview(e.Args.Contains("--expanded"));
+            if (preview && e.Args.Contains("--group-example")) main.LoadGroupExamplePreview();
+            if (preview && e.Args.Contains("--status-example")) main.LoadStatusExample();
             main.Show();
             if (capture) await main.RefreshAllForCaptureAsync();
             var materialIndex = Array.IndexOf(e.Args, "--material-report");
@@ -159,6 +167,11 @@ public partial class App : Application
             main.Close(); Shutdown(); return;
         }
         main.Show();
+        if (showRequests is not null)
+            showWait = ThreadPool.RegisterWaitForSingleObject(showRequests, (_, _) => main.Dispatcher.BeginInvoke(main.ShowFromTray), null, Timeout.Infinite, executeOnlyOnce: false);
     }
-    protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
+    private const string ShowEventName = "Local\\PortPilot.Desktop.Show";
+    private EventWaitHandle? showRequests;
+    private RegisteredWaitHandle? showWait;
+    protected override void OnExit(ExitEventArgs e) { showWait?.Unregister(null); showRequests?.Dispose(); instance?.Dispose(); base.OnExit(e); }
 }

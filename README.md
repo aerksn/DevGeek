@@ -9,13 +9,16 @@ En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# 
 Kör `build.ps1` och dubbelklicka på **app/OtterMonitor.exe**. Den färdigbyggda Windows x64-versionen innehåller .NET och behöver ingen installation. Kör som vanlig användare. En andra instans öppnas inte.
 
 1. Portlistan uppdateras automatiskt varannan sekund. **Bara utveckling** visar välkända runtime-processer som Node, Bun, Deno, Python och .NET samt Docker-portar. Avmarkera för att se alla lokala lyssnande TCP-portar.
-2. Varje **process eller container visas som en grupp** med sina unika portar på samma rad. IPv4- och IPv6-bindningar för samma port visas en gång i sammanfattningen. Dubbelklick på en Node/Bun/Deno-tjänst som svarar över HTTP öppnar webbporten i standardwebbläsaren. Övriga tjänster öppnar en terminal i projektmappen. Håll musen över raden för detaljer.
+2. Varje **process eller container visas som en grupp** med sina unika portar på samma rad. IPv4- och IPv6-bindningar för samma port visas en gång i sammanfattningen. Dubbelklick på en Node/Bun/Deno-tjänst som svarar över HTTP öppnar webbporten i standardwebbläsaren. Övriga tjänster öppnar en terminal i projektmappen. Håll musen över raden för detaljer och **snabbknappar** (se Öppna projektet).
 3. Gruppens **stoppknapp** visar vilken process eller container och vilka portar som berörs innan stoppet utförs.
-4. Öppna **⌄ → Snabbstarter…** för att starta och hantera sparade kommandon i ett separat fönster. Lägg till en egen projektmapp och ett kommando, exempelvis `bun run dev`. Nya installationer börjar med en tom snabbstartslista.
+4. **Snabbstarter ligger i samma lista som portarna.** Lägg till en via **⌄ → Ny snabbstart…** med en projektmapp och ett kommando, exempelvis `bun run dev`. En snabbstart som inte har någon öppen port visas nedtonad under portarna med **▶**. När kommandot körs och dess process lyssnar flyttar den upp som en vanlig portrad med en liten blixt (⚡) bredvid namnet. Stopp, omstart och logg på den raden gäller då hela snabbstarten. Högerklick på en snabbstartsrad ger start, omstart, logg, redigera, terminal och editor. **⌄ → Hantera snabbstarter…** öppnar fortfarande det separata fönstret med alla kort. Nya installationer börjar med en tom snabbstartslista.
 5. **Lägg till** och **Redigera** hanterar namn, arbetsmapp och kommando. Kommandon körs i bakgrunden via `cmd.exe /d /s /c`; exempelvis `bun run dev`, `npm run dev`, `dotnet watch` eller `docker compose up -d`.
-6. **Logg** visar kommandots utdata. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller uppdatering, utvecklingsfilter, fäst överst, snabbstarter och bakgrundsval. Codex/Claude ligger kvar i botten medan portarna scrollas.
-7. **Omstartsikonen** bredvid Stoppa startar om en Docker-container. På snabbstartskortet finns samma ikon bredvid Redigera; den aktiveras när kommandot körs. Omstart avslutar hela den tidigare processgruppen innan kommandot körs igen. En öppen loggvy följer med till den nya körningen och äldre loggar bevaras.
+6. **Logg** visar kommandots utdata. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller uppdatering, utvecklingsfilter, fäst överst, snabbstarter, filter, editorval, notiser, systemfältsval, bakgrundsval och Avsluta. Codex/Claude ligger kvar i botten medan portarna scrollas.
+7. **Omstartsikonen** bland radens snabbknappar startar om en Docker-container eller en snabbstart. På snabbstartskortet finns samma ikon bredvid Redigera; den aktiveras när kommandot körs. Omstart avslutar hela den tidigare processgruppen innan kommandot körs igen. En öppen loggvy följer med till den nya körningen och äldre loggar bevaras.
 8. Körande snabbstarter **återansluts automatiskt** när Otter Monitor öppnas igen och får statusen ”återansluten”. Starta-knappen blir Stoppa, och samma snabbstart kan inte startas dubbelt. Återanslutningen gäller körningar som startats med den här versionen av Otter Monitor.
+9. **Bekräftelser** som "Kopierade …", "Öppnade terminal …" eller "Stoppade …" visas som en liten ruta längst ned i listan i tre sekunder och tar aldrig emot klick. Problem, till exempel ett upptaget urklipp, får en varningsikon och visas i fem sekunder. Fel som kräver ett beslut visas fortfarande som dialog. När inget körs visar listan uttern, en kort förklaring och knappen **Ny snabbstart**; döljer utvecklingsfiltret andra portar säger förklaringen det.
+10. **Börja skriva** var som helst i fönstret, eller tryck **Ctrl+F**, för att filtrera. Filtret matchar namn, port, PID, runtime, projektmapp och snabbstartens namn, kommando och mapp. En sökning letar bland alla lyssnande portar, även utanför **Bara utveckling**. **↓** går till listan, **Enter** öppnar första träffen och **Esc** rensar filtret.
+11. **Krysset döljer fönstret till systemfältet** och Otter Monitor fortsätter bevaka. Klick på ikonen eller **Win+Shift+O** visar och döljer fönstret. Om Win+Shift+O redan används av ett annat program används **Ctrl+Alt+O**; ikonens tips visar vilket. Avsluta via **⌄ → Avsluta Otter Monitor** eller högerklick på ikonen. Stäng av **⌄ → Stäng till systemfältet** för att krysset ska avsluta appen som tidigare. Startas Otter Monitor igen visas det redan öppna fönstret.
 
 Inställningar och loggar sparas i `%LOCALAPPDATA%\PortPilot`. `settings.json` innehåller snabbstarterna och kan redigeras när appen är stängd. Föregående inställningsfil sparas som `.bak`. En trasig fil skrivs inte över vid inläsning. Loggfilerna ligger i `logs`; loggvyn visar de senaste 64 kB, hela filen bevaras. `sessions` sparar kopplingen mellan varje snabbstart och dess processgrupp. Behåll dessa filer medan miljöer körs.
 
@@ -25,11 +28,17 @@ Inställningar och loggar sparas i `%LOCALAPPDATA%\PortPilot`. `settings.json` i
 
 Om tjänsten saknar ett verifierat HTTP-svar, eller kör en annan runtime, öppnar dubbelklick en ny terminal i projektmappen. Enter på en fokuserad rad gör samma sak. Windows Terminal används när den är tillgänglig, annars öppnas Windows PowerShell. Terminalen kopplas inte till en redan körande extern process och startar inte om servern.
 
-**Högerklick** ger valen **Öppna terminal i projektmappen** och **Öppna i Zed**. Zed hittas i sin vanliga installationsmapp eller via PATH. Otter Monitor följer Zeds inställning för hur projekt öppnas. Radens stopp- och omstartsknappar är separata från dubbelklicket.
+**Håll musen över en rad**, eller markera den med ett klick eller piltangenterna, så ersätts resursraden av snabbknappar: 🌐 webbläsare (för webbruntimes), terminal, editor, kopiera adress, logg (snabbstart eller Docker) och omstart (snabbstart eller Docker). Resurserna finns kvar i muspekartipset. Radens höjd ändras inte.
+
+**Högerklick** ger hela uppsättningen: **Öppna i webbläsaren**, **Kopiera http://localhost:3000** (den verifierade adressen när HTTP svarat, annars första porten), **Kopiera PID** eller **Kopiera container-ID**, **Öppna terminal i projektmappen**, **Öppna i editor**, **Visa logg**, **Starta om** och **Stoppa…**. Det uttryckliga webbläsarvalet öppnar aldrig en terminal som reserv. Radens stopp- och omstartsknappar är separata från dubbelklicket.
+
+**Editor** väljs under **⌄ → Editor**: Zed, VS Code, Cursor eller Rider. Utan eget val används den första installerade i den ordningen, så befintliga Zed-användare märker ingen skillnad. Editorer som inte hittas är gråade. Varje editor startas direkt via sin egen .exe med projektmappen som enda argument, aldrig via ett shell eller en `.cmd`-fil; VS Code och Cursor hittas i sina vanliga installationsmappar eller via deras startskript i PATH. Editorns egen inställning avgör om projektet öppnas i ett nytt eller befintligt fönster.
+
+**Visa logg** för en Docker-container visar `docker logs --tail 400` och uppdateras varannan sekund. Containerns stdout och stderr sorteras ihop efter Dockers tidsstämplar och färgkoder tas bort. Varje snabbstart och container har ett loggfönster; att be om det igen tar fram det öppna.
 
 För Node/Bun/Deno används den identifierade projektmappen. För andra Windows-processer läses arbetsmappen när du öppnar raden, med kontroll av processens starttid. Docker Compose kan använda containerns etikett `com.docker.compose.project.working_dir` när den pekar på en befintlig lokal Windows-mapp. Om projektmappen saknas visas ett meddelande; ingen godtycklig mapp öppnas.
 
-Integrationerna använder [Windows Terminals kommandoradsgränssnitt](https://learn.microsoft.com/en-us/windows/terminal/command-line-arguments) och [Zeds CLI](https://zed.dev/docs/reference/cli). Sökvägar skickas som separata argument, utan att byggas in i shellkommandon.
+Integrationerna använder [Windows Terminals kommandoradsgränssnitt](https://learn.microsoft.com/en-us/windows/terminal/command-line-arguments) och respektive editors kommandorad. Sökvägar skickas som separata argument, utan att byggas in i shellkommandon.
 
 ## Status och resursvärden
 
@@ -41,7 +50,7 @@ För Docker används `docker stats --no-stream --no-trunc` ungefär var tionde s
 
 Status kontrolleras i bakgrunden ungefär var tionde sekund. Varje unik lokal TCP-port får en anslutningskontroll. Vanliga webbtjänster får också `HEAD /`; om servern svarar 405 provas `GET /` tills svarshuvudena har kommit. Svaret visas som exempelvis **HTTP 200 · 24 ms** eller **HTTP 500 · 61 ms**. Omdirigeringar följs inte. Ingen kropp hämtas och ingen inloggning eller cookie skickas. Endast lokala IP-adresser används; HTTPS-certifikat kringgås inte. Kända debugger- och HMR-portar kontrolleras enbart med TCP.
 
-Grönt betyder att alla kontrollerade TCP-portar svarar och HTTP inte rapporterar fel. HTTP 4xx visas gult och 5xx rött; en 404 på `/` betyder att just den sökvägen saknas och behöver inte betyda att hela applikationen är trasig. **TCP** bekräftar en anslutning, inte applikationens hälsa. Om några portar inte svarar visas exempelvis **1/2 svarar**. Svarstiden är den långsammaste lyckade kontrollen i gruppen; detaljer för varje port finns i muspekartipset. Docker health-statusen `unhealthy`, `starting` eller `paused` visas när den finns. UDP har ingen TCP-svarstid och visas neutralt utan en Docker health-kontroll. Efter 30 sekunder utan ny status visas **Äldre**.
+Grönt betyder att alla kontrollerade TCP-portar svarar och HTTP inte rapporterar fel. HTTP 4xx visas gult och 5xx rött; en 404 på `/` betyder att just den sökvägen saknas och behöver inte betyda att hela applikationen är trasig. **TCP** bekräftar en anslutning, inte applikationens hälsa. Om några portar inte svarar visas exempelvis **1/2 svarar**. Svarstiden är den långsammaste lyckade kontrollen i gruppen; detaljer för varje port finns i muspekartipset. Docker health-statusen `unhealthy`, `starting` eller `paused` visas när den finns. UDP har ingen TCP-svarstid och visas neutralt utan en Docker health-kontroll. Efter 30 sekunder utan ny status visas **Äldre**. En rad med fel får dessutom en svag rosa ton, så att problemet syns utan att läsa statustexten. Raderna byter aldrig plats efter status, så att en knapp inte flyttas under muspekaren. Misslyckade snabbstarter markeras på samma sätt.
 
 ## Codex och Claude Code
 
@@ -115,7 +124,18 @@ OpenAI-knappen visar Blossom-loggan som vit vektor. Ursprung och varumärkesinfo
 - När Otter Monitor stängs fortsätter startade processer att köras. En dold `PortPilot.LaunchHost` håller processkopplingen vid liv och avslutas när miljön avslutats. Den fristående appen sparar en delad kopia av hjälpprogrammet per appversion i `runtime`, så att den portabla exe-filen kan uppdateras även när miljöer körs. Ingen Windows-tjänst eller autostart installeras.
 - Återanslutning använder en namngiven Windows-processgrupp, aldrig en gissning utifrån processnamn eller port. Den fungerar även om startkommandot har avslutats men barnprocesser körs. Äldre körningar från tidigare appversioner och manuellt startade terminalkommandon visas via portlistan men kopplas inte automatiskt till en snabbstart. Dubblettskyddet gäller samma sparade snabbstart, inte liknande kommandon med olika snabbstarts-ID.
 - Omstart kontrollerar arbetsmapp och kommando före stopp och väntar sedan på att den tidigare processgruppen avslutas. Knappar låses under pågående åtgärder. Okänd avslutningskod efter återanslutning visas som ”Avslutad · se logg”; felkod från en körning som startats i den aktuella appsessionen visas som ”Misslyckades · kod …”. Vid problem med sparad processkoppling startas ingen ny körning, och **Försök igen** försöker återansluta.
-- Interaktiva terminalprogram som kräver inmatning stöds inte i bakgrundskörningen. Appen har ännu ingen systemfältsikon, Windows-autostart eller UDP-lista för vanliga Windows-processer.
+- En portrad kopplas till en snabbstart bara när Windows bekräftar att processen tillhör snabbstartens jobb (`IsProcessInJob`), aldrig utifrån namn, mapp eller port. Docker-containrar som ett kommando startar frikopplat kopplas därför inte; de visas som vanliga containerrader.
+- Interaktiva terminalprogram som kräver inmatning stöds inte i bakgrundskörningen. Appen har ännu ingen Windows-autostart eller UDP-lista för vanliga Windows-processer.
+
+## Systemfältet och notiser
+
+Otter Monitor lägger en ikon i systemfältet när appen startar. Ikonen får en **röd prick** när en synlig tjänst rapporterar fel (HTTP 5xx, svarar inte, Docker `unhealthy`) eller när en snabbstart har misslyckats; tipset namnger vad som är fel. Prickarna försvinner av sig själva när felet är borta eller snabbstarten startas igen.
+
+**Notiser** visas som vanliga Windows-notiser via systemfältsikonen och respekterar Fokushjälp. Klick på en notis visar fönstret. De kan stängas av under **⌄ → Notiser**. Otter Monitor meddelar bara förändringar den själv har sett hända medan den körde:
+
+- **En tjänst slutar svara.** En tjänst som tidigare svarat friskt och sedan rapporterar fel vid två statuskontroller i rad, ungefär 20 sekunder, så att omstarter och HMR-omladdningar inte ger notiser. När den svarar igen kommer en notis om det. Egna stopp och omstarter från Otter Monitor ger inga notiser.
+- **En snabbstart misslyckas.** En körning som sågs igång och sedan avslutades av sig själv med en annan kod än 0. Stopp via Otter Monitor och rena avslut (kod 0, exempelvis `docker compose up -d`) ger ingen notis. En återansluten körning utan känd kod ger notisen ”har avslutats”.
+- **Kodassistentens kvot.** När ett av Codex eller Claudes tidsfönster går ned till 15 % kvar eller lägre, och när samma fönster har fyllts på till minst 50 % efter att ha varit lågt. Äldre avläsningar räknas inte.
 - Alltid överst gäller vanliga skrivbordsfönster, inte Windows säkerhetsskrivbord eller alla exklusiva helskärmslägen.
 
 ## Bygga och testa
@@ -136,7 +156,7 @@ För att även testa den paketerade appens hjälpprocess, ge testprogrammet två
 
 UI-kontroller och en rendering med tydligt märkt exempeldata kan köras utan att läsa användarens inställningar:
 
-Projektnavigeringen testas genom egna processer som registrerar mottagna argument och arbetsmapp, inklusive mellanslag, Unicode och shelltecken. Reservterminalens arbetsmapp kontrolleras med en riktig dold PowerShell-process. WPF-kontrollerna verifierar namn/portars position, dubbelklickets mål, åtskillnad från stoppknappar och att högerklicksmenyn byter projekt med raden. Tester öppnar inte användarens Zed-projekt eller interaktiva terminalfönster.
+Projektnavigeringen testas genom egna processer som registrerar mottagna argument och arbetsmapp, inklusive mellanslag, Unicode och shelltecken. Reservterminalens arbetsmapp kontrolleras med en riktig dold PowerShell-process. WPF-kontrollerna verifierar namn/portars position, dubbelklickets mål, åtskillnad från stoppknappar och att högerklicksmenyn byter projekt med raden. Tester öppnar inte användarens editor, webbläsare eller interaktiva terminalfönster. Jobbkopplingen testas med en riktig lyssnande barnprocess i en snabbstart och mot appens egen process. Notisreglerna, Docker-loggarnas tidssortering och editorvalet testas i Core. UI-kontrollen verifierar snabbknapparnas storlek och placering, att radhöjden är oförändrad, högerklicksmenyernas innehåll, snabbstartsrader, blixtmarkering och filtret.
 
 ```powershell
 .\app\OtterMonitor.exe --preview --verify-ui --report ui-report.txt --output preview.png
@@ -145,7 +165,7 @@ Projektnavigeringen testas genom egna processer som registrerar mottagna argumen
 .\app\OtterMonitor.exe --preview --dialog --output dialog.png
 .\app\OtterMonitor.exe --preview --balance-dialog --output balance-dialog.png
 .\app\OtterMonitor.exe --preview --group-example --output grouped.png
-.\app\OtterMonitor.exe --preview --group-example --expanded --output grouped-details.png
+.\app\OtterMonitor.exe --preview --status-example --output status.png
 ```
 
 `--capture-live --output live.png` renderar aktuell portavläsning utan att starta eller stoppa några miljöer och utan att ändra inställningarna.
@@ -156,8 +176,8 @@ Saldoläsarens fyra JavaScript-tester körs med Node: `node --test tests/OpenAiB
 
 ## Struktur
 
-- `src/PortPilot.Core`: portavläsning, Docker, processgrupper, resursmätning, tjänstkontroller och inställningar.
-- `src/PortPilot.App`: WPF-fönster, dialoger och loggvisning.
+- `src/PortPilot.Core`: portavläsning, Docker, processgrupper, snabbstarternas jobbkoppling, resursmätning, tjänstkontroller, notisregler, editorkatalog och inställningar.
+- `src/PortPilot.App`: WPF-fönster, dialoger, loggvisning, filter samt systemfältsikon, kortkommando och notiser.
 - `tests/PortPilot.Tests`: körbara integrationstester utan externa testpaket.
 - `tests/OpenAiBalanceReader`: tester för appens inbäddade DOM-läsare.
 - `tests/ClaudeUsageReader`: tester för Claude-dialogens kvotfält, nästlade rubriker, procentformat och avgränsning från modellkvoter/krediter. Kör med `node --test tests/ClaudeUsageReader/reader.test.cjs`. Samma layoutfall verifieras också i riktig WebView2 med `--verify-claude-browser --test-root <egen testmapp> --report <rapportfil>`.

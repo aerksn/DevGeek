@@ -64,7 +64,19 @@ public sealed class LaunchManager(string directory, bool shadowCopyHost = false,
             try { File.Copy(source, temp); File.Move(temp, destination, overwrite: true); }
             finally { if (File.Exists(temp)) File.Delete(temp); }
         }
+        PruneHosts(Path.GetDirectoryName(destination)!);
         return hostPath = destination;
+    }
+
+    // Each app build caches a ~65 MB host. Remove older builds' copies; one still holding a running launch is locked and stays.
+    private static void PruneHosts(string current)
+    {
+        foreach (var folder in Directory.EnumerateDirectories(Path.GetDirectoryName(current)!))
+        {
+            if (string.Equals(folder, current, StringComparison.OrdinalIgnoreCase)) continue;
+            try { Directory.Delete(folder, recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private static void StartHost(string executable, LaunchRecord record)

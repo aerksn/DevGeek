@@ -79,29 +79,40 @@ public sealed class QuickStartDialog : Window
 
 public sealed class LogWindow : Window
 {
-    public LogWindow(QuickStart entry)
+    private LogWindow(string title, TimeSpan interval, Func<Task<(string Heading, string Text)>> read)
     {
         Style = (Style)FindResource(typeof(Window));
         _ = new WindowMaterial(this);
-        Title = entry.Name + " · Logg"; Width = 750; Height = 450; MinWidth = 450; MinHeight = 260; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = title + " · Logg"; Width = 750; Height = 450; MinWidth = 450; MinHeight = 260; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var grid = new Grid { Margin = new Thickness(18) }; grid.RowDefinitions.Add(new() { Height = GridLength.Auto }); grid.RowDefinitions.Add(new());
         var heading = new TextBlock { FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) };
         grid.Children.Add(heading);
         var output = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontFamily = new FontFamily("Consolas"), FontSize = 12 };
         Grid.SetRow(output, 1); grid.Children.Add(output); Content = grid;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        void Read()
+        var timer = new DispatcherTimer { Interval = interval };
+        var reading = false;
+        async void Read()
         {
+            if (reading) return;
+            reading = true;
             try
             {
-                // Follow the quick start into its new log after a restart.
-                var session = entry.Session;
-                heading.Text = entry.Command + "\n" + (session?.LogPath ?? "Väntar på nästa körning…");
-                var text = session?.ReadLog() ?? "";
-                if (text != output.Text) { output.Text = text; output.ScrollToEnd(); }
+                var (top, text) = await read();
+                heading.Text = top;
+                // Keep the reader's scroll position unless it was already following the end.
+                var following = output.VerticalOffset + output.ViewportHeight >= output.ExtentHeight - 4;
+                if (text != output.Text) { output.Text = text; if (following) output.ScrollToEnd(); }
             }
             catch (Exception ex) { output.Text = ex.Message; }
+            finally { reading = false; }
         }
-        timer.Tick += (_, _) => Read(); Loaded += (_, _) => { Read(); timer.Start(); }; Closed += (_, _) => timer.Stop();
+        timer.Tick += (_, _) => Read(); Loaded += (_, _) => { Read(); output.ScrollToEnd(); timer.Start(); }; Closed += (_, _) => timer.Stop();
     }
+
+    // Follow the quick start into its new log after a restart.
+    public static LogWindow ForQuickStart(QuickStart entry) => new(entry.Name, TimeSpan.FromSeconds(1), () =>
+        Task.FromResult((entry.Command + "\n" + (entry.Session?.LogPath ?? "Väntar på nästa körning…"), entry.Session?.ReadLog() ?? "")));
+
+    public static LogWindow ForContainer(PortEntry container) => new(container.Name, TimeSpan.FromSeconds(2), async () =>
+        ($"docker logs · {container.Name} · {container.ContainerId}\nSenaste 400 raderna, stdout och stderr i tidsordning. Uppdateras varannan sekund.", await DockerService.LogsAsync(container)));
 }

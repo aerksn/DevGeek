@@ -19,8 +19,31 @@ public partial class MainWindow
         development.Click += DevOnly_Click; appearanceMenu.Items.Add(development);
         var pin = new MenuItem { Header = "Fäst överst", Tag = "pin", IsCheckable = true };
         pin.Click += Pin_Click; appearanceMenu.Items.Add(pin);
-        var quickstarts = new MenuItem { Header = "Snabbstarter…", Tag = "quickstarts" };
+        var addLaunch = new MenuItem { Header = "Ny snabbstart…", Tag = "add-launch" };
+        addLaunch.Click += Add_Click; appearanceMenu.Items.Add(addLaunch);
+        var quickstarts = new MenuItem { Header = "Hantera snabbstarter…", Tag = "quickstarts" };
         quickstarts.Click += QuickStarts_Click; appearanceMenu.Items.Add(quickstarts);
+        var filter = new MenuItem { Header = "Filtrera…  (Ctrl+F)", Tag = "filter" };
+        filter.Click += (_, _) => { appearanceMenu.IsOpen = false; Dispatcher.BeginInvoke(() => OpenFilter()); }; appearanceMenu.Items.Add(filter);
+        appearanceMenu.Items.Add(new Separator());
+        appearanceMenu.Items.Add(new MenuItem { Header = "EDITOR", IsEnabled = false, FontSize = 9 });
+        foreach (var choice in Editor.All)
+        {
+            var installed = !preview && choice.Find() is not null;
+            var item = new MenuItem { Header = choice.Name, IsCheckable = true, Tag = choice, IsEnabled = installed || preview,
+                ToolTip = installed ? "Öppna projekt i " + choice.Name : choice.Name + " hittades inte på den här datorn" };
+            item.Click += (_, _) => SetEditor(choice);
+            appearanceMenu.Items.Add(item);
+        }
+        appearanceMenu.Items.Add(new Separator());
+        var notify = new MenuItem { Header = "Notiser", Tag = "notify", IsCheckable = true,
+            ToolTip = "Meddelar när en tjänst slutar svara, en snabbstart misslyckas eller en kodassistents kvot blir låg eller återställs." };
+        notify.Click += (_, _) => SetOption(() => settings.Notifications = notify.IsChecked, () => settings.Notifications = !notify.IsChecked);
+        appearanceMenu.Items.Add(notify);
+        var toTray = new MenuItem { Header = "Stäng till systemfältet", Tag = "tray", IsCheckable = true,
+            ToolTip = "Krysset döljer fönstret och Otter Monitor fortsätter bevaka i systemfältet. Avsluta via menyn." };
+        toTray.Click += (_, _) => SetOption(() => settings.CloseToTray = toTray.IsChecked, () => settings.CloseToTray = !toTray.IsChecked);
+        appearanceMenu.Items.Add(toTray);
         appearanceMenu.Items.Add(new Separator());
         appearanceMenu.Items.Add(new MenuItem { Header = "BAKGRUND", IsEnabled = false, FontSize = 9 });
         var border = new MenuItem { Header = "Visa fönsterram", IsCheckable = true, Tag = "border" };
@@ -44,7 +67,11 @@ public partial class MainWindow
         appearanceMenu.Items.Add(new Separator());
         var reset = new MenuItem { Header = "Återställ utseende" };
         reset.Click += (_, _) => SetAppearance(new()); appearanceMenu.Items.Add(reset);
+        appearanceMenu.Items.Add(new Separator());
+        var exit = new MenuItem { Header = "Avsluta Otter Monitor", Tag = "exit" };
+        exit.Click += (_, _) => { appearanceMenu.IsOpen = false; Dispatcher.BeginInvoke(ExitApplication); }; appearanceMenu.Items.Add(exit);
         foreach (var item in appearanceMenu.Items.OfType<MenuItem>()) item.Style = (Style)FindResource("AppearanceMenuItem");
+        foreach (var separator in appearanceMenu.Items.OfType<Separator>()) separator.Style = (Style)FindResource("MenuSeparator");
         appearanceMenu.Opened += (_, _) => UpdateAppearanceMenu();
         ContextMenu = appearanceMenu;
         ApplyAppearance(settings.Appearance);
@@ -57,6 +84,24 @@ public partial class MainWindow
             else if (item.Tag is "border") item.IsChecked = settings.Appearance.ShowBorder;
             else if (item.Tag is "development") item.IsChecked = developmentOnly;
             else if (item.Tag is "pin") item.IsChecked = Topmost;
+            else if (item.Tag is Editor choice) item.IsChecked = choice == CurrentEditor;
+            else if (item.Tag is "notify") item.IsChecked = settings.Notifications;
+            else if (item.Tag is "tray") item.IsChecked = settings.CloseToTray;
+    }
+
+    private void SetEditor(Editor choice)
+    {
+        var previous = settings.Editor;
+        settings.Editor = choice.Id;
+        if (!Save()) settings.Editor = previous;
+        editor = null; Changed(nameof(CurrentEditor)); Changed(nameof(EditorActionLabel)); UpdateAppearanceMenu();
+    }
+
+    private void SetOption(Action apply, Action undo)
+    {
+        apply();
+        if (!Save()) undo();
+        UpdateAppearanceMenu(); UpdateTray();
     }
     private bool SetAppearance(AppearanceSettings appearance)
     {

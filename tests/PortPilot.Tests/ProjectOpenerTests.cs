@@ -18,12 +18,12 @@ internal static class ProjectOpenerTests
             return Task.CompletedTask;
         });
 
-        await test("Terminal and Zed launch boundaries preserve exact directories and separate literal arguments", async () =>
+        await test("Terminal and editor launch boundaries preserve exact directories and separate literal arguments", async () =>
         {
             var directory = Path.Combine(root, "projekt åäö & $draft %value% (demo)"); Directory.CreateDirectory(directory);
             foreach (var zed in new[] { false, true })
             {
-                var start = zed ? ProjectOpener.ZedStart(directory, Environment.ProcessPath!) : ProjectOpener.TerminalStart(directory, Environment.ProcessPath!);
+                var start = zed ? ProjectOpener.EditorStart(directory, Environment.ProcessPath!) : ProjectOpener.TerminalStart(directory, Environment.ProcessPath!);
                 var report = Path.Combine(root, "project-open-" + Guid.NewGuid().ToString("N") + ".json");
                 start.Environment["PORTPILOT_OPEN_FIXTURE"] = report;
                 using var child = Process.Start(start)!;

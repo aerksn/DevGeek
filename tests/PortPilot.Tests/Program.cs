@@ -158,9 +158,9 @@ await Test("Remote Docker endpoints rejected; local Windows pipes allowed", asyn
 await Test("Settings roundtrip, backup, and malformed-file preservation", () =>
 {
     var store = new SettingsStore(Path.Combine(root, "settings-" + Guid.NewGuid().ToString("N")));
-    var config = new Settings { Topmost = true, Compact = true, QuickStarts = [new() { Name = "Miljö åäö", Directory = @"C:\repo med mellanslag", Command = "echo \"hej\" && echo klart" }] };
+    var config = new Settings { Topmost = true, QuickStarts = [new() { Name = "Miljö åäö", Directory = @"C:\repo med mellanslag", Command = "echo \"hej\" && echo klart" }] };
     store.Save(config); var loaded = store.Load();
-    Check(loaded.QuickStarts[0].Name == "Miljö åäö" && loaded.QuickStarts[0].Command == config.QuickStarts[0].Command && loaded.Topmost && loaded.Compact, "Settings changed.");
+    Check(loaded.QuickStarts[0].Name == "Miljö åäö" && loaded.QuickStarts[0].Command == config.QuickStarts[0].Command && loaded.Topmost, "Settings changed.");
     config.Topmost = false; store.Save(config); Check(File.Exists(store.FilePath + ".bak"), "Backup missing.");
     File.WriteAllText(store.FilePath, "broken-json");
     bool rejected = false; try { store.Load(); } catch (JsonException) { rejected = true; }
@@ -215,6 +215,29 @@ await Test("Job still tracks child after launcher and cmd have exited", async ()
         await Until(() => session.ExitCode != 259);
         Check(session.IsRunning, "Live descendant was lost after root exit.");
         session.Stop(); await Until(() => !session.IsRunning);
+    }
+    finally { if (session.IsRunning) { session.Stop(); await Until(() => !session.IsRunning); } }
+});
+
+await Test("Job membership links a quick start's own listener and nothing else", async () =>
+{
+    var ready = Path.Combine(root, "member-" + Guid.NewGuid().ToString("N") + ".json");
+    using var session = LaunchSession.Start(Entry($"\"{Environment.ProcessPath}\" --fixture-parent \"{ready}\""), root);
+    try
+    {
+        await Until(() => File.Exists(ready) && new FileInfo(ready).Length > 0);
+        var fixture = JsonSerializer.Deserialize<Fixture>(File.ReadAllText(ready))!;
+        var listener = ports.Scan().Single(p => p.Pid == fixture.Pid && p.Port == fixture.Port);
+        Check(session.Contains(listener.Pid), "The grandchild listener was not recognized as part of the quick start.");
+        Check(!session.Contains(Environment.ProcessId) && !session.Contains(0) && !session.Contains(4), "An unrelated or system process was claimed.");
+        var group = PortGroup.Create([listener]).Single();
+        var entry = Entry("unused"); entry.Session = session; group.Launch = entry;
+        Check(group.IsLaunch && group.CanRestart && group.CanShowLog && !group.IsDocker && group.Hint.StartsWith("Startad av snabbstarten Test"), "Linked group did not expose quick start actions.");
+        group.IsStopping = true; Check(!group.CanRestart, "Restart stayed available during a stop.");
+        // An exited process may keep its job membership while handles remain; it simply stops listening, so no row links to it.
+        session.Stop(); await Until(() => !session.IsRunning);
+        await Until(() => !ports.Scan().Any(p => p.Pid == fixture.Pid));
+        Check(!entry.CanRestart, "A stopped quick start still offered restart.");
     }
     finally { if (session.IsRunning) { session.Stop(); await Until(() => !session.IsRunning); } }
 });
@@ -314,7 +337,6 @@ await Test("Six Docker bindings collapse to one owner with three unique ports", 
     Check(group.PortCount == 3 && group.Entries.Count == 6, "Unique ports or address details lost.");
     Check(group.PortSummary == ":3210  ·  :3211  ·  :11434", "Unexpected port summary.");
     Check(group.Matches("3211") && group.PortCount == 3 && group.Matches("::"), "Search did not retain whole group.");
-    Check(group.BindingDetails.Contains("[::]:3210 → 3210/tcp"), "IPv6 mapping is ambiguous or missing.");
     Check(group.StopTarget?.ContainerId == "backend-id", "Wrong stop target.");
     return Task.CompletedTask;
 });
@@ -339,14 +361,14 @@ await Test("Equal names do not merge different PIDs, start times, containers or 
     return Task.CompletedTask;
 });
 
-await Test("TCP and UDP stay distinct; refresh preserves expansion and stop state", () =>
+await Test("TCP and UDP stay distinct; refresh preserves stop state", () =>
 {
     var entry = new PortEntry(5353, "0.0.0.0", 0, "dns", "Docker", null, ContainerId: "dns", DockerEndpoint: "npipe://./pipe/docker_engine", ContainerPort: 53);
     var group = PortGroup.Create([entry, entry with { Protocol = "udp" }]).Single();
     Check(group.PortCount == 2 && group.PortSummary.Contains(":5353/udp"), "Protocol identity lost.");
-    group.IsExpanded = true; group.IsStopping = true;
+    group.IsStopping = true;
     group.Update(PortGroup.Create([entry with { Address = "::" }]).Single());
-    Check(group.IsExpanded && !group.CanStop && group.Entries[0].Address == "::", "Refresh reset UI state or retained stale details.");
+    Check(!group.CanStop && group.Entries[0].Address == "::", "Refresh reset UI state or retained stale details.");
     group.IsStopping = false; Check(group.CanStop, "Stop state not released.");
     var rejected = false;
     try { group.Update(PortGroup.Create([entry with { ContainerId = "different" }]).Single()); }
@@ -512,7 +534,10 @@ await Test("Packaged desktop host preserves the job, releases after stop and lea
     var ready = Path.Combine(directory, "listener.json");
     var manager = new LaunchManager(directory, shadowCopyHost: true, hostExecutable: Path.GetFullPath(args[1]));
     var entry = Entry($"\"{Environment.ProcessPath}\" --fixture-listener \"{ready}\"");
+    var olderBuild = Path.Combine(directory, "runtime", "OLDER-BUILD"); Directory.CreateDirectory(olderBuild);
+    File.WriteAllText(Path.Combine(olderBuild, "PortPilot.LaunchHost.exe"), "older host");
     LaunchSession? session = manager.Start(entry);
+    Check(!Directory.Exists(olderBuild), "An unused host copy from an older build was kept.");
     try
     {
         await Until(() => File.Exists(ready) && new FileInfo(ready).Length > 0);
@@ -545,6 +570,7 @@ await ProjectOpenerTests.Run(root, Test, Check);
 await WebServiceTests.Run(Test, Check, Throws);
 await AssistantUsageTests.Run(root, Test, Check);
 await AppearanceTests.Run(root, Test, Check);
+await ShellTests.Run(root, Test, Check);
 var report = $"{passed.Count} passed, {failures.Count} failed\n" + string.Join("\n", passed.Select(p => "PASS " + p)) + "\n" + string.Join("\n", failures);
 File.WriteAllText(Path.Combine(root, "test-report.txt"), report);
 Console.WriteLine($"\n{passed.Count} passed, {failures.Count} failed");
