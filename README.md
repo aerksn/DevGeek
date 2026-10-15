@@ -4,9 +4,19 @@
 
 En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Svenskt, minimalistiskt gränssnitt med frostat glas, dämpade plommonfärger, ljusblå accenter och diskreta stoppknappar med fylld symbol och svagt markerad yta. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
 
-## Starta
+## Installera
 
-Kör `build.ps1` och dubbelklicka på **app/OtterMonitor.exe**. Den färdigbyggda Windows x64-versionen innehåller .NET och behöver ingen installation. Kör som vanlig användare. En andra instans öppnas inte.
+Kör `installer.ps1`. Den bygger appen och skapar **dist/OtterMonitor-Setup-<version>.exe** med [Inno Setup 6](https://jrsoftware.org/isinfo.php) (installera en gång med `winget install --id JRSoftware.InnoSetup -e --scope user`). Installern:
+
+- installerar för dig utan administratörsfråga, i `%LOCALAPPDATA%\Programs\Otter Monitor`, och lägger **Otter Monitor** i Start-menyn,
+- syns under **Inställningar → Appar** med version och avinstallation,
+- kan lägga en skrivbordsgenväg och starta Otter Monitor dolt i systemfältet vid inloggning (`--tray`),
+- uppdaterar en befintlig installation på plats: en körande Otter Monitor avslutas först med `OtterMonitor.exe --exit`; startade snabbstarter fortsätter köras,
+- lämnar datamappen `%LOCALAPPDATA%\OtterMonitor` kvar vid avinstallation, så att inställningar och inloggningar finns kvar vid en ny installation.
+
+Versionen sätts i `Directory.Build.props`. Utan installation fungerar också `build.ps1`, som bara bygger den portabla **app/OtterMonitor.exe**. Den innehåller .NET och kan köras direkt som vanlig användare. En andra instans öppnas inte; den visar i stället fönstret som redan körs.
+
+## Starta
 
 1. Portlistan uppdateras automatiskt varannan sekund. **Bara utveckling** visar välkända runtime-processer som Node, Bun, Deno, Python och .NET samt Docker-portar. Avmarkera för att se alla lokala lyssnande TCP-portar.
 2. Varje **process eller container visas som en grupp** med sina unika portar på samma rad. IPv4- och IPv6-bindningar för samma port visas en gång i sammanfattningen. Dubbelklick på en Node/Bun/Deno-tjänst som svarar över HTTP öppnar webbporten i standardwebbläsaren. Övriga tjänster öppnar en terminal i projektmappen. Håll musen över raden för detaljer och **snabbknappar** (se Öppna projektet).

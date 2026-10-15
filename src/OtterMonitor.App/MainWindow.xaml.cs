@@ -84,7 +84,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Loaded += async (_, _) => { if (!preview) { RefreshBalance(); _ = RefreshAssistantUsageAsync(); if (settings.OpenAiBalanceEnabled) _ = StartBackgroundBalanceAsync(); RestoreLaunches(); StartTray(); timer.Start(); _ = RefreshDockerAsync(); await RefreshPortsAsync(); } };
         Closing += OnClosing;
         // Logging off or shutting down must exit, never hide to the tray.
-        if (Application.Current is { } app) app.SessionEnding += (_, _) => exitRequested = true;
+        if (Application.Current is { } app) app.SessionEnding += (_, _) => exitRequested = quietExit = true;
         Closed += (_, _) => { closed = true; timer.Stop(); telemetryStop.Cancel(); serviceProbe.Dispose(); billingBrowser?.Dispose(); claudeBrowser?.Dispose(); foreach (var entry in QuickStarts) entry.Session?.Dispose(); tray?.Dispose(); tray = null; };
     }
 
@@ -486,7 +486,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (billingCloseReady) return;
         if (HideToTray(e)) return;
         if (QuickStarts.Any(q => q.IsBusy) || portActions.Count > 0) { e.Cancel = true; SetStatus("Vänta tills den pågående åtgärden är klar innan du stänger.", problem: true); return; }
-        if (QuickStarts.Any(q => q.Session?.IsRunning == true) && !Dialogs.Confirm(this, "Stäng Otter Monitor?", "Dina startade processer fortsätter att köras. Otter Monitor återansluter snabbstarterna nästa gång appen öppnas.\n\nVill du stoppa en hel snabbstart, välj Avbryt och Stoppa först.", "Stäng")) { e.Cancel = true; return; }
+        if (!quietExit && QuickStarts.Any(q => q.Session?.IsRunning == true) && !Dialogs.Confirm(this, "Stäng Otter Monitor?", "Dina startade processer fortsätter att köras. Otter Monitor återansluter snabbstarterna nästa gång appen öppnas.\n\nVill du stoppa en hel snabbstart, välj Avbryt och Stoppa först.", "Stäng")) { e.Cancel = true; return; }
         Save();
         if (billingBrowser is not null || claudeBrowser is not null)
         {

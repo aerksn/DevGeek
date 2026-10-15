@@ -15,9 +15,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build portable application
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build portable application and installer
         shell: pwsh
-        run: ./build.ps1
+        run: ./installer.ps1
       - name: Core and packaged application checks
         shell: pwsh
         run: |
@@ -38,4 +40,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: OtterMonitor-Windows-x64
-          path: app/OtterMonitor.exe
+          path: |
+            app/OtterMonitor.exe
+            dist/OtterMonitor-Setup-*.exe

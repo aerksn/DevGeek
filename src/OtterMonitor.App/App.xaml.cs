@@ -62,6 +62,12 @@ public partial class App : Application
         {
             Shutdown(1); return;
         }
+        if (e.Args.Length == 1 && e.Args[0] == "--exit")
+        {
+            // Used by the installer and uninstaller: ask a running Otter Monitor to quit and wait until its exe is free.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            Shutdown(RequestExit() ? 0 : 1); return;
+        }
         if (e.Args.Length == 3 && e.Args[0] == "--keep-launch")
         {
             try { Shutdown(LaunchSession.HoldJob(e.Args[1], e.Args[2])); }
@@ -94,6 +100,7 @@ public partial class App : Application
                 Shutdown(); return;
             }
             showRequests = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+            exitRequests = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
         }
         // Only the single real instance moves the PortPilot-era folder; previews never touch user data.
         var store = new SettingsStore(preview || capture ? DataDirectory.Default : DataDirectory.Resolve(DataDirectory.Default, DataDirectory.Legacy, ClaudeUsageInstaller.DefaultSettingsFile));
@@ -167,12 +174,32 @@ public partial class App : Application
             using (var file = File.Create(path)) encoder.Save(file);
             main.Close(); Shutdown(); return;
         }
+        // Started at sign-in: go straight to the notification area.
+        if (e.Args.Contains("--tray")) main.StartInTray();
         main.Show();
         if (showRequests is not null)
             showWait = ThreadPool.RegisterWaitForSingleObject(showRequests, (_, _) => main.Dispatcher.BeginInvoke(main.ShowFromTray), null, Timeout.Infinite, executeOnlyOnce: false);
+        if (exitRequests is not null)
+            exitWait = ThreadPool.RegisterWaitForSingleObject(exitRequests, (_, _) => main.Dispatcher.BeginInvoke(() => main.ExitApplication(quiet: true)), null, Timeout.Infinite, executeOnlyOnce: true);
     }
-    private const string ShowEventName = "Local\\OtterMonitor.Desktop.Show";
-    private EventWaitHandle? showRequests;
-    private RegisteredWaitHandle? showWait;
-    protected override void OnExit(ExitEventArgs e) { showWait?.Unregister(null); showRequests?.Dispose(); instance?.Dispose(); base.OnExit(e); }
+    private const string ShowEventName = "Local\\OtterMonitor.Desktop.Show", ExitEventName = "Local\\OtterMonitor.Desktop.Exit";
+    private EventWaitHandle? showRequests, exitRequests;
+    private RegisteredWaitHandle? showWait, exitWait;
+
+    private static bool RequestExit()
+    {
+        if (!EventWaitHandle.TryOpenExisting(ExitEventName, out var exit)) return true; // Not running.
+        var running = System.Diagnostics.Process.GetProcessesByName("OtterMonitor").Where(process => process.Id != Environment.ProcessId).ToList();
+        using (exit) exit.Set();
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        var exited = running.All(process => { using (process) return process.WaitForExit(Math.Max(0, (int)(deadline - DateTime.UtcNow).TotalMilliseconds)); });
+        return exited;
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        showWait?.Unregister(null); exitWait?.Unregister(null); showRequests?.Dispose(); exitRequests?.Dispose();
+        try { instance?.ReleaseMutex(); } catch (ApplicationException) { /* Not owned: a second instance or a tool mode. */ }
+        instance?.Dispose(); base.OnExit(e);
+    }
 }

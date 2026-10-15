@@ -13,7 +13,7 @@ public partial class MainWindow
 {
     private TrayIcon? tray;
     private readonly NoticeTracker notices = new();
-    private bool exitRequested, trayHintShown;
+    private bool exitRequested, quietExit, trayHintShown, startInTray;
     private ContextMenu? trayMenu;
 
     private void StartTray()
@@ -31,7 +31,7 @@ public partial class MainWindow
     public void ShowFromTray()
     {
         if (closed) return;
-        if (!IsVisible) Show();
+        if (!IsVisible) { ShowInTaskbar = true; Show(); }
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
         // A focused row keeps keyboard use going straight away.
@@ -61,13 +61,35 @@ public partial class MainWindow
         return menu;
     }
 
-    public void ExitApplication()
+    /// <param name="quiet">From the installer or a sign-out: no questions. Started quick starts keep running, as on every exit.</param>
+    public void ExitApplication(bool quiet = false)
     {
-        exitRequested = true;
-        if (!IsVisible) Show();
+        exitRequested = true; quietExit = quiet;
+        if (!IsVisible && !quiet) Show();
         Close();
         // The window stays open when the user cancels the exit; hiding to the tray is then possible again.
-        if (!closed) exitRequested = false;
+        if (!closed) exitRequested = quietExit = false;
+    }
+
+    public void StartInTray()
+    {
+        startInTray = true;
+        WindowStartupLocation = WindowStartupLocation.Manual; Left = Top = -32000; ShowActivated = false; ShowInTaskbar = false;
+        // Hiding during Loaded is undone by the rest of Show(); after the first render it sticks.
+        ContentRendered += FinishTrayStart;
+    }
+
+    // Hide to the tray and place the window where it will appear later.
+    private void FinishTrayStart(object? sender, EventArgs e)
+    {
+        ContentRendered -= FinishTrayStart;
+        if (!startInTray) return;
+        startInTray = false;
+        // Changing ShowInTaskbar on a hidden window shows it again, so ShowFromTray restores it.
+        if (tray is not null) Hide(); else ShowInTaskbar = true;
+        var area = SystemParameters.WorkArea;
+        Left = area.Left + (area.Width - ActualWidth) / 2; Top = area.Top + (area.Height - ActualHeight) / 2;
+        ShowActivated = true;
     }
 
     /// <summary>Close (X, Alt+F4) keeps Otter Monitor watching from the notification area unless that is turned off.</summary>
