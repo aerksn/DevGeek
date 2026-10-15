@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>OtterMonitor</AssemblyName>
+    <RootNamespace>OtterMonitor.App</RootNamespace>
+    <Product>Otter Monitor</Product>
+    <AssemblyTitle>Otter Monitor</AssemblyTitle>
+    <Description>Local development monitor and launcher</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>otter-monitor.ico</ApplicationIcon>
+    <!-- Keep the portable app folder to the exe and its symbols. -->
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../OtterMonitor.Core/OtterMonitor.Core.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Resource Include="otter-monitor.ico" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <EmbeddedResource Include="OpenAiBalanceReader.js" LogicalName="OtterMonitor.BalanceReader.js" />
+    <EmbeddedResource Include="ClaudeUsageReader.js" LogicalName="OtterMonitor.ClaudeUsageReader.js" />
+  </ItemGroup>
+</Project>

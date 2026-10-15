@@ -20,7 +20,7 @@ Kör `build.ps1` och dubbelklicka på **app/OtterMonitor.exe**. Den färdigbyggd
 10. **Börja skriva** var som helst i fönstret, eller tryck **Ctrl+F**, för att filtrera. Filtret matchar namn, port, PID, runtime, projektmapp och snabbstartens namn, kommando och mapp. En sökning letar bland alla lyssnande portar, även utanför **Bara utveckling**. **↓** går till listan, **Enter** öppnar första träffen och **Esc** rensar filtret.
 11. **Krysset döljer fönstret till systemfältet** och Otter Monitor fortsätter bevaka. Klick på ikonen eller **Win+Shift+O** visar och döljer fönstret. Om Win+Shift+O redan används av ett annat program används **Ctrl+Alt+O**; ikonens tips visar vilket. Avsluta via **⌄ → Avsluta Otter Monitor** eller högerklick på ikonen. Stäng av **⌄ → Stäng till systemfältet** för att krysset ska avsluta appen som tidigare. Startas Otter Monitor igen visas det redan öppna fönstret.
 
-Inställningar och loggar sparas i `%LOCALAPPDATA%\PortPilot`. `settings.json` innehåller snabbstarterna och kan redigeras när appen är stängd. Föregående inställningsfil sparas som `.bak`. En trasig fil skrivs inte över vid inläsning. Loggfilerna ligger i `logs`; loggvyn visar de senaste 64 kB, hela filen bevaras. `sessions` sparar kopplingen mellan varje snabbstart och dess processgrupp. Behåll dessa filer medan miljöer körs.
+Inställningar och loggar sparas i `%LOCALAPPDATA%\OtterMonitor`. `settings.json` innehåller snabbstarterna och kan redigeras när appen är stängd. Föregående inställningsfil sparas som `.bak`. En trasig fil skrivs inte över vid inläsning. Loggfilerna ligger i `logs`; loggvyn visar de senaste 64 kB, hela filen bevaras. `sessions` sparar kopplingen mellan varje snabbstart och dess processgrupp. Behåll dessa filer medan miljöer körs.
 
 ## Öppna projektet
 
@@ -66,7 +66,7 @@ Claudes användningssida kan öppnas som en inställningsdialog medan sidans int
 
 **Claude Code i terminalen** använder det dokumenterade [rate_limits-fältet i statusraden](https://code.claude.com/docs/en/statusline), med 5-timmars- och 7-dagarsfönster när kontot lämnar dem. När bara terminalversionen körs, klicka på dess kvotrad för att koppla, eller kör `OtterMonitor.exe --install-claude-usage` en gång. Otter Monitor lägger till sin statusrad i `~/.claude/settings.json` (eller `CLAUDE_CONFIG_DIR`) och sparar en backup bredvid filen. Övriga inställningar bevaras. En befintlig egen statusrad skrivs inte över. Den nya statusraden visar samma återstående kvot i terminalen.
 
-Första Claude-värdet kommer efter ett vanligt svar som innehåller kvotdata. Otter Monitor skickar inga Claude-anrop för att få fram det. Claude-kopplingen fungerar utan webbläsare eller separat inloggning; den läser bara JSON som Claude Code själv lämnar till statusraden. Endast procent, tidsfönster, återställningstid och mottagningstid sparas i `%LOCALAPPDATA%\PortPilot\claude-usage.json`. Konversationer, transcript-sökvägar och autentiseringsuppgifter sparas inte. Scriptet ligger bredvid cachefilen som `claude-usage.ps1` och fungerar även när Otter Monitor är stängt. En koppling gäller alla vanliga sessioner som använder den användarinställningen; projektspecifika statusrader kan åsidosätta den. Vid flera konton/sessioner används den senast mottagna kvoten.
+Första Claude-värdet kommer efter ett vanligt svar som innehåller kvotdata. Otter Monitor skickar inga Claude-anrop för att få fram det. Claude-kopplingen fungerar utan webbläsare eller separat inloggning; den läser bara JSON som Claude Code själv lämnar till statusraden. Endast procent, tidsfönster, återställningstid och mottagningstid sparas i `%LOCALAPPDATA%\OtterMonitor\claude-usage.json`. Konversationer, transcript-sökvägar och autentiseringsuppgifter sparas inte. Scriptet ligger bredvid cachefilen som `claude-usage.ps1` och fungerar även när Otter Monitor är stängt. En koppling gäller alla vanliga sessioner som använder den användarinställningen; projektspecifika statusrader kan åsidosätta den. Vid flera konton/sessioner används den senast mottagna kvoten.
 
 Claude-värden äldre än fem minuter och Codex-värden äldre än två minuter markeras **äldre**. När en återställningstid har passerat visas `—` tills ett nytt värde kommer, inte en påhittad full kvot. Saknad Claude-kvot i terminalen kan bero på kontotyp, en äldre klient eller att klienten ännu inte lämnat fältet. Se då Claude Codes egen `/usage`. Windows-installationer av Codex och Claude Code samt deras vanliga Node-installationer känns igen; processer inne i WSL/fjärrmaskiner ingår inte. När både Claude-appen och terminalen körs används den separat anslutna användningssidan för Claude-raden.
 
@@ -88,7 +88,7 @@ Kompaktlägets stoppknappar har en diskret kontursymbol utan färgad platta i vi
 
 Billing hämtas på nytt var femte minut när fönstret är dolt eller minimerat och ingen inmatning/dialog är öppen. Ett synligt Billing-fönster eller en pågående inloggning avbryts inte. **Uppdatera saldo nu** hämtar ett nyare saldo direkt. Oförändrad text som bara läses på nytt får inte en förnyad avläsningstid.
 
-**Otter Monitor måste vara igång**, men kan vara minimerat. När Otter Monitor stängs avslutas också dess Billing-session; nästa start återupptar bakgrundsläsningen om den var aktiverad. Ingen Windows-tjänst eller autostart skapas. WebView2:s profil finns i `%LOCALAPPDATA%\PortPilot\billing-profile`.
+**Otter Monitor måste vara igång**, men kan vara minimerat. När Otter Monitor stängs avslutas också dess Billing-session; nästa start återupptar bakgrundsläsningen om den var aktiverad. Ingen Windows-tjänst eller autostart skapas. WebView2:s profil finns i `%LOCALAPPDATA%\OtterMonitor\billing-profile`.
 
 För att inloggningen ska kunna återställas även efter en fullständig omstart sparar appen också sin egen OpenAI-sessions cookies i `billing-session.bin`, krypterat med Windows DPAPI för din Windows-användare. Detta sker först när ett saldo har lästs, därefter ungefär varje minut och vid vanlig avstängning. Återställningen sker före sidladdningen; befintliga nyare cookies ersätts inte. Endast sessionens OpenAI-domäner ingår. Cookie-egenskaperna bevaras och serverns giltighetstid ändras inte. Ett lokalt checkpoint äldre än sju dagar återställs inte. Inga lösenord sparas eller loggas och inga andra webbläsarprofiler läses.
 
@@ -121,7 +121,7 @@ OpenAI-knappen visar Blossom-loggan som vit vektor. Ursprung och varumärkesinfo
 - Docker stoppas med `docker stop --time 10` och startas om med `docker container restart --timeout 10`, mot samma lokala endpoint och fullständiga container-ID som lästes in. Appen stoppar inte Docker Desktop självt. Om CLI-anropet får timeout kan Docker fortfarande slutföra åtgärden; uppdatera portlistan för aktuell status.
 - Vanliga processer avslutas med sina underprocesser. Detta är ett påtvingat stopp, inte Ctrl+C. Processens starttid och portägarskap kontrolleras igen före stopp. Windows-systemprocesser och Dockers vidarebefordrande processer skyddas. Åtkomstfel visas utan automatisk administratörshöjning. En extern watcher kan starta en process igen.
 - Snabbstarter spåras med Windows Job Objects, även om startkommandot avslutas före en underprocess. **Stoppa** avslutar hela den spårade processgruppen. Tjänster och Docker-containrar som ett kommando startar frikopplat, exempelvis `docker compose up -d`, måste stoppas via portlistan eller ett separat kommando.
-- När Otter Monitor stängs fortsätter startade processer att köras. En dold `PortPilot.LaunchHost` håller processkopplingen vid liv och avslutas när miljön avslutats. Den fristående appen sparar en delad kopia av hjälpprogrammet per appversion i `runtime`, så att den portabla exe-filen kan uppdateras även när miljöer körs. Ingen Windows-tjänst eller autostart installeras.
+- När Otter Monitor stängs fortsätter startade processer att köras. En dold `OtterMonitor.LaunchHost` håller processkopplingen vid liv och avslutas när miljön avslutats. Den fristående appen sparar en delad kopia av hjälpprogrammet per appversion i `runtime`, så att den portabla exe-filen kan uppdateras även när miljöer körs. Ingen Windows-tjänst eller autostart installeras.
 - Återanslutning använder en namngiven Windows-processgrupp, aldrig en gissning utifrån processnamn eller port. Den fungerar även om startkommandot har avslutats men barnprocesser körs. Äldre körningar från tidigare appversioner och manuellt startade terminalkommandon visas via portlistan men kopplas inte automatiskt till en snabbstart. Dubblettskyddet gäller samma sparade snabbstart, inte liknande kommandon med olika snabbstarts-ID.
 - Omstart kontrollerar arbetsmapp och kommando före stopp och väntar sedan på att den tidigare processgruppen avslutas. Knappar låses under pågående åtgärder. Okänd avslutningskod efter återanslutning visas som ”Avslutad · se logg”; felkod från en körning som startats i den aktuella appsessionen visas som ”Misslyckades · kod …”. Vid problem med sparad processkoppling startas ingen ny körning, och **Försök igen** försöker återansluta.
 - En portrad kopplas till en snabbstart bara när Windows bekräftar att processen tillhör snabbstartens jobb (`IsProcessInJob`), aldrig utifrån namn, mapp eller port. Docker-containrar som ett kommando startar frikopplat kopplas därför inte; de visas som vanliga containerrader.
@@ -143,8 +143,8 @@ Otter Monitor lägger en ikon i systemfältet när appen startar. Ikonen får en
 Windows och .NET 10 SDK krävs för källkoden. Den färdigbyggda appen behöver inte SDK:t.
 
 ```powershell
-dotnet build src/PortPilot.App/PortPilot.App.csproj -c Release
-dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:TEMP\Otter Monitor-tests"
+dotnet build src/OtterMonitor.App/OtterMonitor.App.csproj -c Release
+dotnet run --project tests/OtterMonitor.Tests/OtterMonitor.Tests.csproj -c Release -- "$env:TEMP\otter-monitor-tests"
 .\build.ps1
 ```
 
@@ -152,7 +152,7 @@ dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- 
 
 Testprogrammet skapar egna tillfälliga TCP-servrar. Det testar riktiga IPv4/IPv6-bindningar, PID-skydd, stopp och omstart på samma port, återanslutning efter att den startande processen avslutats, dubbelstart, kommandologgar, arbetsmappar, inställningar samt Docker-JSON och filtrering av fjärranslutningar. Projektupptäckten kontrolleras med paketnamn, undermappar, beroendepaket, felaktiga metadata och separata processägare. Docker-omstart kontrolleras med en separat test-CLI, inklusive argument, endpoint, kontext och felhantering. Det stoppar inga befintliga användarservrar eller containrar.
 
-För att även testa den paketerade appens hjälpprocess, ge testprogrammet två argument: en absolut resultatmapp och den absoluta sökvägen till `app\OtterMonitor.exe`. Vanlig körning omfattar 52 tester, med den paketerade exe-filen 53. Sätt miljövariabeln `PORTPILOT_TEST_NODE` till den absoluta sökvägen till `node.exe` för ytterligare ett integrationstest: en egen Node-server i en projektmapp med mellanslag upptäcks via sin verkliga arbetsmapp, får rätt projektnamn och stoppas med bibehållen processidentitet. Resurstesterna kontrollerar verkligt processminne, CPU över ett tidsintervall och skydd mot återanvända PID. En separat test-CLI kontrollerar Docker stats-argument och minnesenheter. Lokala HTTP/TCP-fixturer kontrollerar svarstid, HEAD/GET, felkoder, partiellt svarande grupper, timeout, omdirigeringar och avbrytning. Utvecklingsbyggen som inte är fristående använder sin vanliga exe som hjälpprogram; stoppa snabbstarterna innan dessa byggfiler ersätts.
+För att även testa den paketerade appens hjälpprocess, ge testprogrammet två argument: en absolut resultatmapp och den absoluta sökvägen till `app\OtterMonitor.exe`. Vanlig körning omfattar 52 tester, med den paketerade exe-filen 53. Sätt miljövariabeln `OTTERMONITOR_TEST_NODE` till den absoluta sökvägen till `node.exe` för ytterligare ett integrationstest: en egen Node-server i en projektmapp med mellanslag upptäcks via sin verkliga arbetsmapp, får rätt projektnamn och stoppas med bibehållen processidentitet. Resurstesterna kontrollerar verkligt processminne, CPU över ett tidsintervall och skydd mot återanvända PID. En separat test-CLI kontrollerar Docker stats-argument och minnesenheter. Lokala HTTP/TCP-fixturer kontrollerar svarstid, HEAD/GET, felkoder, partiellt svarande grupper, timeout, omdirigeringar och avbrytning. Utvecklingsbyggen som inte är fristående använder sin vanliga exe som hjälpprogram; stoppa snabbstarterna innan dessa byggfiler ersätts.
 
 UI-kontroller och en rendering med tydligt märkt exempeldata kan köras utan att läsa användarens inställningar:
 
@@ -176,9 +176,9 @@ Saldoläsarens fyra JavaScript-tester körs med Node: `node --test tests/OpenAiB
 
 ## Struktur
 
-- `src/PortPilot.Core`: portavläsning, Docker, processgrupper, snabbstarternas jobbkoppling, resursmätning, tjänstkontroller, notisregler, editorkatalog och inställningar.
-- `src/PortPilot.App`: WPF-fönster, dialoger, loggvisning, filter samt systemfältsikon, kortkommando och notiser.
-- `tests/PortPilot.Tests`: körbara integrationstester utan externa testpaket.
+- `src/OtterMonitor.Core`: portavläsning, Docker, processgrupper, snabbstarternas jobbkoppling, resursmätning, tjänstkontroller, notisregler, editorkatalog och inställningar.
+- `src/OtterMonitor.App`: WPF-fönster, dialoger, loggvisning, filter samt systemfältsikon, kortkommando och notiser.
+- `tests/OtterMonitor.Tests`: körbara integrationstester utan externa testpaket.
 - `tests/OpenAiBalanceReader`: tester för appens inbäddade DOM-läsare.
 - `tests/ClaudeUsageReader`: tester för Claude-dialogens kvotfält, nästlade rubriker, procentformat och avgränsning från modellkvoter/krediter. Kör med `node --test tests/ClaudeUsageReader/reader.test.cjs`. Samma layoutfall verifieras också i riktig WebView2 med `--verify-claude-browser --test-root <egen testmapp> --report <rapportfil>`.
 
@@ -188,17 +188,17 @@ Resursmätning: [Process.WorkingSet64](https://learn.microsoft.com/en-us/dotnet/
 
 
 
-Den dolda WebView2-sessionen kan integrationstestas på lokala testdata med `app\OtterMonitor.exe --verify-background --test-root C:\temp\Otter Monitor-test-profile --report C:\temp\Otter Monitor-background-report.txt`. Testet kontaktar inget OpenAI-konto och behöver ingen inloggning. Det testar riktig dold DOM-avläsning, automatisk omhämtning, avvisning av varningar och återförsök vid lagringsfel.
+Den dolda WebView2-sessionen kan integrationstestas på lokala testdata med `app\OtterMonitor.exe --verify-background --test-root C:\temp\otter-monitor-test-profile --report C:\temp\otter-monitor-background-report.txt`. Testet kontaktar inget OpenAI-konto och behöver ingen inloggning. Det testar riktig dold DOM-avläsning, automatisk omhämtning, avvisning av varningar och återförsök vid lagringsfel.
 
 Bakgrundssession: [WebView2:s dolda vy](https://learn.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2controller.isvisible), [lokal profil](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder), [officiellt SDK](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4258.31).
 
 Sessionsåterställning verifieras med `--verify-billing-session --test-root <egen testmapp> --session-phase seed --report <rapportfil>` och därefter `probe` med samma testmapp i en ny app-process. `--baseline` visar beteendet utan checkpoint: vanliga cookies kvarstår men sessionscookies försvinner. `revoke` och sedan `probe-revoked` kontrollerar att en utloggad session inte återställs. Testet använder endast syntetiska cookies och lokal HTML, blockerar alla externa testförfrågningar och väntar på att hela WebView2-processen avslutas. Lagringen använder [Windows ProtectedData/DPAPI](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata?view=net-10.0).
 
-Appen hette tidigare PortPilot och DevGeek. Datamappen `%LOCALAPPDATA%\PortPilot` behålls för sparade kommandon, loggar och inloggningar. Den äldre exe-sökvägen är en kompatibilitetslänk till samma programfil.
+Appen hette tidigare PortPilot och DevGeek. Vid första starten flyttar Otter Monitor den gamla datamappen `%LOCALAPPDATA%\PortPilot` till `%LOCALAPPDATA%\OtterMonitor` i ett steg, med sparade kommandon, loggar, inloggningar och snabbstarternas processkopplingar. Om något i den gamla mappen används, till exempel en snabbstart som körs, fortsätter appen använda den och försöker flytta igen vid nästa start. En Claude-statusrad som pekar på den gamla mappen flyttas med. Snabbstarter som startades före namnbytet återansluts som vanligt. De sparade inloggningarnas krypteringsnyckel har kvar sitt gamla namn, så att du inte loggas ut.
 
 ## Ikon
 
-Appens logga är en orange utter med turkos fisk och transparent bakgrund, utformad med imagegen utifrån den medföljande referensbilden. Loggan finns i `assets/otter-mark.png`, referensen i `assets/otter-logo.png` och Windows-ikonen i `src/PortPilot.App/otter-monitor.ico`. Genereringsprompten finns i `assets/otter-mark.prompt.txt`. Återskapa ICO med `python tools/build-icon.py` (Pillow krävs endast för detta verktyg); transparensen bevaras i alla nio ikonstorlekar.
+Appens logga är en orange utter med turkos fisk och transparent bakgrund, utformad med imagegen utifrån den medföljande referensbilden. Loggan finns i `assets/otter-mark.png`, referensen i `assets/otter-logo.png` och Windows-ikonen i `src/OtterMonitor.App/otter-monitor.ico`. Genereringsprompten finns i `assets/otter-mark.prompt.txt`. Återskapa ICO med `python tools/build-icon.py` (Pillow krävs endast för detta verktyg); transparensen bevaras i alla nio ikonstorlekar.
 
 ## Förhandsvisning
 

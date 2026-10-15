@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const reader = require('../../src/PortPilot.App/OpenAiBalanceReader.js');
+const reader = require('../../src/OtterMonitor.App/OpenAiBalanceReader.js');
 const billing = 'https://platform.openai.com/settings/organization/billing/overview';
 
 test('USD amounts: zero, negative and thousands; malformed/foreign values rejected', () => {

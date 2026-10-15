@@ -21,8 +21,8 @@ jobs:
       - name: Core and packaged application checks
         shell: pwsh
         run: |
-          $env:PORTPILOT_TEST_NODE = (Get-Command node).Source
-          dotnet run --project tests/PortPilot.Tests/PortPilot.Tests.csproj -c Release -- "$env:RUNNER_TEMP\otter-monitor-tests" "$pwd\app\OtterMonitor.exe"
+          $env:OTTERMONITOR_TEST_NODE = (Get-Command node).Source
+          dotnet run --project tests/OtterMonitor.Tests/OtterMonitor.Tests.csproj -c Release -- "$env:RUNNER_TEMP\otter-monitor-tests" "$pwd\app\OtterMonitor.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: OpenAI DOM reader checks
         run: node --test tests/OpenAiBalanceReader/reader.test.cjs

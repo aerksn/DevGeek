@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const reader = require('../../src/PortPilot.App/ClaudeUsageReader.js');
+const reader = require('../../src/OtterMonitor.App/ClaudeUsageReader.js');
 const url = 'https://claude.ai/settings/usage';
 
 // Small structural DOM fixtures. The same cases also run in real WebView2.
