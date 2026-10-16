@@ -140,6 +140,13 @@ public partial class App : Application
                 if (reportIndex >= 0 && reportIndex + 1 < e.Args.Length) File.WriteAllText(e.Args[reportIndex + 1], report);
             }
             Window renderedWindow = main;
+            if (e.Args.Contains("--log-example"))
+            {
+                var log = LogWindow.ForText("Auroraidentity-Land", @"bun run dev   ·   C:\repos\aurora\auroraidentity_land", () => LogWindow.ExampleText);
+                log.Owner = main; log.WindowStartupLocation = WindowStartupLocation.Manual; log.Left = -16000; log.Top = -16000; log.ShowInTaskbar = false; log.ShowActivated = false;
+                log.Show(); await log.Refresh();
+                renderedWindow = log;
+            }
             if (e.Args.Contains("--new-dialog"))
             {
                 // The project picker as it looks on this computer: searches the usual code folders, read-only.

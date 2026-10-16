@@ -136,7 +136,7 @@ public sealed class LaunchSession : IDisposable
         var text = reader.ReadToEnd();
         // Strip terminal color codes for the native text viewer.
         text = System.Text.RegularExpressions.Regex.Replace(text, @"\x1B\[[0-?]*[ -/]*[@-~]", "");
-        return (truncated ? "… senaste 64 kB …\n" : "") + text;
+        return (truncated ? LogLines.TruncatedMarker + "\n" : "") + text;
     }
 
     public void Dispose() { process?.Dispose(); job?.Dispose(); }

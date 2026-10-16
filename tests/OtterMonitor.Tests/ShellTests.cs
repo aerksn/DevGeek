@@ -145,6 +145,18 @@ internal static class ShellTests
             return Task.CompletedTask;
         });
 
+        await test("Log lines split prefixes, pick levels and report a truncated start", () =>
+        {
+            var (lines, truncated) = LogLines.Parse(LogLines.TruncatedMarker + "\n08:00:01  ready in 120 ms\r\n[vite] warning: big chunk\nnpm ERR! missing script\nplain\n");
+            check(truncated && lines.Count == 4, "The truncation marker was shown as a line or lines were lost.");
+            check(lines[0] is { Prefix: "08:00:01  ", Body: "ready in 120 ms", Level: LogLevel.Success } && lines[1] is { Prefix: "[vite] ", Level: LogLevel.Warning }
+                && lines[2].Level == LogLevel.Error && lines[3] is { Prefix: "", Level: LogLevel.Normal }, "Prefixes or levels were wrong.");
+            check(LogLines.Line("0 errors, 0 warnings").Level == LogLevel.Normal && LogLines.Line("Build failed").Level == LogLevel.Error,
+                "Plural counts were flagged as errors, or a failure was missed.");
+            check(!LogLines.Parse("one\ntwo").Truncated && LogLines.Parse("").Lines.Count == 0, "Short or empty logs were misread.");
+            return Task.CompletedTask;
+        });
+
         await test("Quick start rows match by name, command and folder and report failures", () =>
         {
             var entry = new QuickStart { Name = "Webb", Command = "bun run dev", Directory = @"C:\repos\shop" };

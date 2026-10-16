@@ -431,7 +431,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ShowLaunchLog(QuickStart entry)
     {
         if (entry.Session is null) { Dialogs.Info(this, "Ingen logg ännu", "Starta kommandot för att se dess utdata här."); return; }
-        ShowLog("launch|" + entry.Id, () => LogWindow.ForQuickStart(entry));
+        ShowLog("launch|" + entry.Id, () => LogWindow.ForQuickStart(entry, RestartLaunch, StopLaunchAsync));
     }
 
     // One log window per quick start or container; asking again brings the open one forward.
@@ -661,6 +661,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VerifyLaunchRowsAndFilter(Check);
         VerifyFeedback(Check);
         await VerifyQuickStartPicker(Check);
+        await VerifyLogWindow(Check);
         material.VerifyModernBlur(Check);
         VerifyAssistantUsage(Check);
         await VerifyAppearanceAsync(Check);

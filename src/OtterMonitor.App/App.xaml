@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Application x:Class="OtterMonitor.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Application x:Class="OtterMonitor.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:core="clr-namespace:OtterMonitor.Core;assembly=OtterMonitor.Core">
   <Application.Resources>
     <LinearGradientBrush x:Key="BackgroundBrush" StartPoint="0,0" EndPoint="1,1">
       <GradientStop Color="#343044" Offset="0" />
@@ -305,5 +305,36 @@
       </Grid>
     </DataTemplate>
     <DataTemplate x:Key="ProjectCommandTemplate"><TextBlock Text="{Binding Command}" FontFamily="Cascadia Mono,Consolas" FontSize="11" /></DataTemplate>
+    <!-- Log window: a darker reading surface with colored lines. -->
+    <Style x:Key="LogList" TargetType="ListBox">
+      <Setter Property="Background" Value="#38100E1C" /><Setter Property="BorderThickness" Value="0" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="SelectionMode" Value="Extended" /><Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" /><Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" /><Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBox">
+        <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="4,8,4,8">
+          <ScrollViewer x:Name="LogScroll" Focusable="False" Padding="0,0,4,0"><ItemsPresenter /></ScrollViewer>
+        </Border>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="LogItem" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="10,1" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="Body" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}"><ContentPresenter /></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Body" Property="Background" Value="#0CCFDDFB" /></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="Body" Property="Background" Value="#33BDAAF2" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <DataTemplate x:Key="LogLineTemplate">
+      <TextBlock x:Name="Line" FontFamily="Cascadia Mono,Consolas" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="#E6E2F2">
+        <Run Text="{Binding Prefix, Mode=OneWay}" Foreground="#9C98B4" /><Run Text="{Binding Body, Mode=OneWay}" />
+      </TextBlock>
+      <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Error}"><Setter TargetName="Line" Property="Foreground" Value="{StaticResource RoseBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Warning}"><Setter TargetName="Line" Property="Foreground" Value="#E4CEA0" /></DataTrigger>
+        <DataTrigger Binding="{Binding Level}" Value="{x:Static core:LogLevel.Success}"><Setter TargetName="Line" Property="Foreground" Value="#A3CDBC" /></DataTrigger>
+      </DataTemplate.Triggers>
+    </DataTemplate>
   </Application.Resources>
 </Application>

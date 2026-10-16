@@ -150,6 +150,15 @@ public partial class MainWindow
         finally { dialog.Close(); QuickStarts.Remove(shop); ApplyFilter(); Directory.Delete(repos, true); }
     }
 
+    private async Task VerifyLogWindow(Action<bool, string> check)
+    {
+        var text = LogWindow.ExampleText.Replace("\r\n", "\n") + "\n";
+        var window = LogWindow.ForText("demo-app", "bun run dev   ·   C:\\repos\\demo-app", () => text);
+        window.Owner = this; window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = -16000; window.Top = -16000; window.ShowActivated = false;
+        try { window.Show(); await window.VerifyLog(check, () => text, more => text += more); }
+        finally { window.Close(); }
+    }
+
     /// <summary>The application icon at the closest size that is at least <paramref name="size"/> pixels.</summary>
     internal static BitmapSource IconFrame(int size)
     {
