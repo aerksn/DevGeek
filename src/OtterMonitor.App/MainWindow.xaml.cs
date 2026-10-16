@@ -348,7 +348,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (preview) return;
         appearanceMenu.IsOpen = false;
-        var dialog = new QuickStartDialog { Owner = this };
+        var dialog = CreateNewQuickStartDialog();
         if (dialog.ShowDialog() != true || dialog.Result is null) return;
         QuickStarts.Add(dialog.Result);
         if (!Save()) QuickStarts.Remove(dialog.Result);
@@ -660,6 +660,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VerifyProjectRows(Check);
         VerifyLaunchRowsAndFilter(Check);
         VerifyFeedback(Check);
+        await VerifyQuickStartPicker(Check);
         material.VerifyModernBlur(Check);
         VerifyAssistantUsage(Check);
         await VerifyAppearanceAsync(Check);

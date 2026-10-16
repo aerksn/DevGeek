@@ -21,7 +21,7 @@ Versionen sätts i `Directory.Build.props`. Utan installation fungerar också `b
 1. Portlistan uppdateras automatiskt varannan sekund. **Bara utveckling** visar välkända runtime-processer som Node, Bun, Deno, Python och .NET samt Docker-portar. Avmarkera för att se alla lokala lyssnande TCP-portar.
 2. Varje **process eller container visas som en grupp** med sina unika portar på samma rad. IPv4- och IPv6-bindningar för samma port visas en gång i sammanfattningen. Dubbelklick på en Node/Bun/Deno-tjänst som svarar över HTTP öppnar webbporten i standardwebbläsaren. Övriga tjänster öppnar en terminal i projektmappen. Håll musen över raden för detaljer och **snabbknappar** (se Öppna projektet).
 3. Gruppens **stoppknapp** visar vilken process eller container och vilka portar som berörs innan stoppet utförs.
-4. **Snabbstarter ligger i samma lista som portarna.** Lägg till en via **⌄ → Ny snabbstart…** med en projektmapp och ett kommando, exempelvis `bun run dev`. En snabbstart som inte har någon öppen port visas nedtonad under portarna med **▶**. När kommandot körs och dess process lyssnar flyttar den upp som en vanlig portrad med en liten blixt (⚡) bredvid namnet. Stopp, omstart och logg på den raden gäller då hela snabbstarten. Högerklick på en snabbstartsrad ger start, omstart, logg, redigera, terminal och editor. **⌄ → Hantera snabbstarter…** öppnar fortfarande det separata fönstret med alla kort. Nya installationer börjar med en tom snabbstartslista.
+4. **Snabbstarter ligger i samma lista som portarna.** Lägg till en via **⌄ → Ny snabbstart…**. Dialogen söker igenom dina projektmappar (som standard `C:\repos` och andra vanliga kodmappar som finns, eller de mappar du väljer med mappknappen) och listar projekt som går att starta. Välj ett projekt och ett av dess kommandon så fylls namn, arbetsmapp och kommando i; allt går att ändra innan du sparar, och dubbelklick sparar direkt med det föreslagna kommandot. Projekt som redan har en snabbstart märks **tillagd**. Du kan också fylla i mapp och kommando själv, exempelvis `bun run dev`. En snabbstart som inte har någon öppen port visas nedtonad under portarna med **▶**. När kommandot körs och dess process lyssnar flyttar den upp som en vanlig portrad med en liten blixt (⚡) bredvid namnet. Stopp, omstart och logg på den raden gäller då hela snabbstarten. Högerklick på en snabbstartsrad ger start, omstart, logg, redigera, terminal och editor. **⌄ → Hantera snabbstarter…** öppnar fortfarande det separata fönstret med alla kort. Nya installationer börjar med en tom snabbstartslista.
 5. **Lägg till** och **Redigera** hanterar namn, arbetsmapp och kommando. Kommandon körs i bakgrunden via `cmd.exe /d /s /c`; exempelvis `bun run dev`, `npm run dev`, `dotnet watch` eller `docker compose up -d`.
 6. **Logg** visar kommandots utdata. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller uppdatering, utvecklingsfilter, fäst överst, snabbstarter, filter, editorval, notiser, systemfältsval, bakgrundsval och Avsluta. Codex/Claude ligger kvar i botten medan portarna scrollas.
 7. **Omstartsikonen** bland radens snabbknappar startar om en Docker-container eller en snabbstart. På snabbstartskortet finns samma ikon bredvid Redigera; den aktiveras när kommandot körs. Omstart avslutar hela den tidigare processgruppen innan kommandot körs igen. En öppen loggvy följer med till den nya körningen och äldre loggar bevaras.
@@ -31,6 +31,15 @@ Versionen sätts i `Directory.Build.props`. Utan installation fungerar också `b
 11. **Krysset döljer fönstret till systemfältet** och Otter Monitor fortsätter bevaka. Klick på ikonen eller **Win+Shift+O** visar och döljer fönstret. Om Win+Shift+O redan används av ett annat program används **Ctrl+Alt+O**; ikonens tips visar vilket. Avsluta via **⌄ → Avsluta Otter Monitor** eller högerklick på ikonen. Stäng av **⌄ → Stäng till systemfältet** för att krysset ska avsluta appen som tidigare. Startas Otter Monitor igen visas det redan öppna fönstret.
 
 Inställningar och loggar sparas i `%LOCALAPPDATA%\OtterMonitor`. `settings.json` innehåller snabbstarterna och kan redigeras när appen är stängd. Föregående inställningsfil sparas som `.bak`. En trasig fil skrivs inte över vid inläsning. Loggfilerna ligger i `logs`; loggvyn visar de senaste 64 kB, hela filen bevaras. `sessions` sparar kopplingen mellan varje snabbstart och dess processgrupp. Behåll dessa filer medan miljöer körs.
+
+## Hitta projekt
+
+Sökningen läser bara projektfiler och kör inget. Den går högst fyra nivåer ned och hoppar över `node_modules`, `bin`, `obj`, `dist`, `build`, dolda mappar som `.git`, `.next` och `.output`, samt länkar.
+
+- **`package.json`** med `scripts`: namnet är paketets `name`, utom vanliga mallnamn som `nuxt-app` eller `vite-project`, där mappnamnet används. Kommandot följer pakethanteraren enligt `packageManager` eller låsfilen, även i en överliggande arbetsyta: `bun run`, `pnpm run`, `yarn` eller `npm run`. `dev`, `start`, `serve`, `develop`, `watch` och `preview` visas först och den första föreslås; därefter andra skript som liknar en server, sist övriga. Livscykelskript som `postinstall` och `pre`/`post`-krokar visas inte.
+- **Compose-filer** (`compose.yaml`, `docker-compose.yml`): `docker compose up -d`, `up` eller `up --build`.
+- **.NET-webbprojekt** (`Microsoft.NET.Sdk.Web`): `dotnet watch` eller `dotnet run`. Klassbibliotek och testprojekt visas inte.
+- **Deno** (`deno.json` med `tasks`): `deno task …`. **Django** (`manage.py`): `python manage.py runserver`.
 
 ## Öppna projektet
 
@@ -176,6 +185,7 @@ Projektnavigeringen testas genom egna processer som registrerar mottagna argumen
 .\app\OtterMonitor.exe --preview --balance-dialog --output balance-dialog.png
 .\app\OtterMonitor.exe --preview --group-example --output grouped.png
 .\app\OtterMonitor.exe --preview --status-example --output status.png
+.\app\OtterMonitor.exe --preview --new-dialog --select-first --output new-quick-start.png
 ```
 
 `--capture-live --output live.png` renderar aktuell portavläsning utan att starta eller stoppa några miljöer och utan att ändra inställningarna.

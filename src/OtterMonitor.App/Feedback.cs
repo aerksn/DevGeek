@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -6,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using OtterMonitor.Core;
 
 namespace OtterMonitor.App;
 
@@ -115,6 +117,37 @@ public partial class MainWindow
         }
         finally { nativePorts = savedPorts; docker = savedDocker; foreach (var entry in savedLaunches) QuickStarts.Add(entry); ApplyFilter(); UpdateLayout(); }
         check(!EmptyState.IsVisible && !DenseEmptyPorts.IsVisible && Ports.Count == 5, "The empty state disappears as soon as services return");
+    }
+
+    /// <summary>"Ny snabbstart" with the project list, searching the saved folders or the usual code folders.</summary>
+    public QuickStartDialog CreateNewQuickStartDialog(IReadOnlyList<string>? roots = null) =>
+        new(null, roots ?? settings.ProjectRoots ?? ProjectScanner.DefaultRoots(), QuickStarts.ToList(), chosen =>
+        {
+            var previous = settings.ProjectRoots;
+            settings.ProjectRoots = chosen;
+            if (Save()) return true;
+            settings.ProjectRoots = previous; return false;
+        }) { Owner = this };
+
+    private async Task VerifyQuickStartPicker(Action<bool, string> check)
+    {
+        var repos = Path.Combine(Path.GetTempPath(), "otter-monitor-picker-" + Guid.NewGuid().ToString("N"));
+        void Write(string relative, string text) { var path = Path.Combine(repos, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, text); }
+        Write(@"shop\package.json", """{ "name": "shop", "scripts": { "dev": "vite" } }""");
+        Write(@"api\package.json", """{ "name": "api", "scripts": { "dev": "bun --watch .", "build": "bun build ." } }""");
+        Write(@"api\bun.lock", "");
+        Write(@"stack\compose.yaml", "services: {}");
+        var shop = new QuickStart { Name = "Butiken", Directory = Path.Combine(repos, "shop"), Command = "npm run dev" };
+        QuickStarts.Add(shop);
+        var dialog = CreateNewQuickStartDialog([repos]);
+        dialog.WindowStartupLocation = WindowStartupLocation.Manual; dialog.Left = -16000; dialog.Top = -16000; dialog.ShowActivated = true;
+        try
+        {
+            dialog.Show();
+            await dialog.Scan;
+            await dialog.VerifyPicker(check);
+        }
+        finally { dialog.Close(); QuickStarts.Remove(shop); ApplyFilter(); Directory.Delete(repos, true); }
     }
 
     /// <summary>The application icon at the closest size that is at least <paramref name="size"/> pixels.</summary>

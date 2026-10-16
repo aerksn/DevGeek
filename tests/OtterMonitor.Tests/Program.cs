@@ -20,6 +20,14 @@ if (args.FirstOrDefault() == "app-server" && Environment.GetEnvironmentVariable(
         : "{\"id\":2,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":73,\"windowDurationMins\":10080}}}}");
     await Console.In.ReadToEndAsync(); return;
 }
+if (args.FirstOrDefault() == "--scan-projects")
+{
+    var watch = Stopwatch.StartNew();
+    var projects = ProjectScanner.Scan(args.Length > 1 ? args[1..] : ProjectScanner.DefaultRoots());
+    foreach (var project in projects) Console.WriteLine($"{project.ServiceLabel,-12} {project.Name,-32} {project.Recommended.Command,-28} {project.Location}");
+    Console.WriteLine($"{projects.Count} projects in {watch.ElapsedMilliseconds} ms");
+    return;
+}
 if (args.FirstOrDefault() == "--verify-assistant-processes")
 {
     var activity = AssistantProcesses.Scan();
@@ -571,6 +579,7 @@ await WebServiceTests.Run(Test, Check, Throws);
 await AssistantUsageTests.Run(root, Test, Check);
 await AppearanceTests.Run(root, Test, Check);
 await ShellTests.Run(root, Test, Check);
+await ProjectScannerTests.Run(root, Test, Check);
 var report = $"{passed.Count} passed, {failures.Count} failed\n" + string.Join("\n", passed.Select(p => "PASS " + p)) + "\n" + string.Join("\n", failures);
 File.WriteAllText(Path.Combine(root, "test-report.txt"), report);
 Console.WriteLine($"\n{passed.Count} passed, {failures.Count} failed");

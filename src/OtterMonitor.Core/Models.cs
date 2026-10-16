@@ -68,6 +68,8 @@ public sealed class Settings
     public string? Editor { get; set; }
     public bool Notifications { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
+    /// <summary>Folders searched for projects in "Ny snabbstart"; null uses <see cref="ProjectScanner.DefaultRoots"/>.</summary>
+    public List<string>? ProjectRoots { get; set; }
     public AppearanceSettings Appearance { get; set; } = new();
     public List<QuickStart> QuickStarts { get; set; } = [];
 }

@@ -140,6 +140,15 @@ public partial class App : Application
                 if (reportIndex >= 0 && reportIndex + 1 < e.Args.Length) File.WriteAllText(e.Args[reportIndex + 1], report);
             }
             Window renderedWindow = main;
+            if (e.Args.Contains("--new-dialog"))
+            {
+                // The project picker as it looks on this computer: searches the usual code folders, read-only.
+                var picker = main.CreateNewQuickStartDialog(ProjectScanner.DefaultRoots());
+                picker.WindowStartupLocation = WindowStartupLocation.Manual; picker.Left = -16000; picker.Top = -16000; picker.ShowInTaskbar = false; picker.ShowActivated = false;
+                picker.Show(); await picker.Scan;
+                if (e.Args.Contains("--select-first")) picker.SelectFirstProject();
+                renderedWindow = picker;
+            }
             if (e.Args.Contains("--dialog"))
             {
                 renderedWindow = new QuickStartDialog(new QuickStart { Name = "Starta dev miljö", Directory = @"C:\repos\demo-app", Command = "bun run dev" }) { Owner = main, WindowStartupLocation = WindowStartupLocation.Manual, Left = -16000, Top = -16000, ShowInTaskbar = false, ShowActivated = false };

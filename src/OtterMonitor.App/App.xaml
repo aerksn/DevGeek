@@ -236,5 +236,74 @@
         </Setter.Value>
       </Setter>
     </Style>
+    <Geometry x:Key="NodeGlyph">M9,1 L16,5 L16,13 L9,17 L2,13 L2,5 Z M6,12 L6,6 L12,12 L12,6</Geometry>
+    <Geometry x:Key="DockerGlyph">M1,9 L14,9 C15,9 16,7 17,7 L17,10 C15,11 15,15 9,15 C4,15 2,13 1,9 Z M3,5 L6,5 L6,8 L3,8 Z M7,5 L10,5 L10,8 L7,8 Z M11,5 L14,5 L14,8 L11,8 Z M7,1 L10,1 L10,4 L7,4 Z</Geometry>
+    <Geometry x:Key="BunGlyph">M9,1 C9,4 16,5 16,11 C16,15 13,17 9,17 C5,17 2,15 2,11 C2,6 6,4 9,1 Z M6,10 L6,11 M12,10 L12,11 M7,13 Q9,15 11,13</Geometry>
+    <Geometry x:Key="CodeGlyph">M6,3 L2,9 L6,15 M12,3 L16,9 L12,15 M10,3 L8,15</Geometry>
+    <Geometry x:Key="PythonGlyph">M3,8 L3,4 Q3,2 6,2 L12,2 Q15,2 15,5 L15,9 L8,9 L8,13 L2,13 L2,8 Z M15,10 L15,14 Q15,16 12,16 L6,16 Q3,16 3,13 M6,5 L7,5 M11,13 L12,13</Geometry>
+    <Geometry x:Key="TcpGlyph">M5,2 L13,2 L13,7 L5,7 Z M9,7 L9,11 M2,11 L16,11 M3,11 L3,14 M15,11 L15,14 M1,14 L5,14 L5,17 L1,17 Z M13,14 L17,14 L17,17 L13,17 Z</Geometry>
+    <Style x:Key="ServiceGlyph" TargetType="Path">
+      <Setter Property="Data" Value="{StaticResource TcpGlyph}" /><Setter Property="Stroke" Value="{StaticResource MutedBrush}" /><Setter Property="StrokeThickness" Value="1.35" /><Setter Property="StrokeStartLineCap" Value="Round" /><Setter Property="StrokeEndLineCap" Value="Round" /><Setter Property="StrokeLineJoin" Value="Round" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ServiceIcon}" Value="node"><Setter Property="Data" Value="{StaticResource NodeGlyph}" /><Setter Property="Stroke" Value="#A3CDBC" /></DataTrigger>
+        <DataTrigger Binding="{Binding ServiceIcon}" Value="docker"><Setter Property="Data" Value="{StaticResource DockerGlyph}" /><Setter Property="Stroke" Value="{StaticResource AccentBrush}" /></DataTrigger>
+        <DataTrigger Binding="{Binding ServiceIcon}" Value="bun"><Setter Property="Data" Value="{StaticResource BunGlyph}" /><Setter Property="Stroke" Value="#E4CEA0" /></DataTrigger>
+        <DataTrigger Binding="{Binding ServiceIcon}" Value="dotnet"><Setter Property="Data" Value="{StaticResource CodeGlyph}" /><Setter Property="Stroke" Value="#C6B7F0" /></DataTrigger>
+        <DataTrigger Binding="{Binding ServiceIcon}" Value="python"><Setter Property="Data" Value="{StaticResource PythonGlyph}" /><Setter Property="Stroke" Value="#E4CEA0" /></DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <DataTemplate x:Key="ServiceIconTemplate"><Viewbox Width="16" Height="16" ToolTip="{Binding ServiceLabel}" AutomationProperties.Name="{Binding ServiceLabel}"><Canvas Width="18" Height="18"><Path Style="{StaticResource ServiceGlyph}" /></Canvas></Viewbox></DataTemplate>
+    <!-- Project picker in "Ny snabbstart". -->
+    <Style x:Key="PickerList" TargetType="ListBox">
+      <Setter Property="Background" Value="#18141224" /><Setter Property="BorderBrush" Value="{StaticResource LineBrush}" /><Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="4" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" /><Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBox">
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+          <ScrollViewer Focusable="False"><ItemsPresenter /></ScrollViewer>
+        </Border>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="PickerItem" TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" /><Setter Property="Padding" Value="8,5" /><Setter Property="Cursor" Value="Hand" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="Body" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}"><ContentPresenter /></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Body" Property="Background" Value="#14CFDDFB" /></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="Body" Property="Background" Value="#33BDAAF2" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Body" Property="Background" Value="#26BDAAF2" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ChipList" TargetType="ListBox">
+      <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="0" />
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+      <Setter Property="ItemsPanel"><Setter.Value><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></Setter.Value></Setter>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBox"><ItemsPresenter /></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ChipItem" TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource MutedBrush}" /><Setter Property="Margin" Value="0,0,6,6" /><Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="Body" Background="#10D7D9FF" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12" Padding="10,4"><ContentPresenter /></Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Body" Property="Background" Value="#20D9D0FF" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" /></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter TargetName="Body" Property="Background" Value="#3AAB9CDD" /><Setter TargetName="Body" Property="BorderBrush" Value="#8CBDAAF2" /><Setter Property="Foreground" Value="{StaticResource AccentBrush}" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Body" Property="BorderBrush" Value="{StaticResource AccentBrush}" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <DataTemplate x:Key="ProjectCandidateTemplate">
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <ContentControl Content="{Binding Candidate}" ContentTemplate="{StaticResource ServiceIconTemplate}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Candidate.Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Candidate.Location}" FontSize="10" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Candidate.Directory}" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" Text="{Binding Note}" FontSize="10" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="8,0,2,0" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="ProjectCommandTemplate"><TextBlock Text="{Binding Command}" FontFamily="Cascadia Mono,Consolas" FontSize="11" /></DataTemplate>
   </Application.Resources>
 </Application>
