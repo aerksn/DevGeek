@@ -4,6 +4,8 @@ using System.Net.Sockets;
 using System.Text.Json;
 using OtterMonitor.Core;
 
+UiText.SetLanguage("sv"); // Preserve the original Swedish behavioral assertions.
+
 if (args.FirstOrDefault() == "app-server" && Environment.GetEnvironmentVariable("OTTERMONITOR_CODEX_FIXTURE") is { } quotaFixture)
 {
     var init = JsonDocument.Parse((await Console.In.ReadLineAsync())!);
@@ -573,6 +575,7 @@ await Test("Packaged desktop host preserves the job, releases after stop and lea
 });
 
 await BalanceTests.Run(root, Test, Check, Throws);
+await LocalizationTests.Run(root, Test, Check);
 await TelemetryTests.Run(root, Test, Check);
 await ProjectOpenerTests.Run(root, Test, Check);
 await WebServiceTests.Run(Test, Check, Throws);

@@ -8,100 +8,70 @@ namespace OtterMonitor.App;
 
 public partial class MainWindow
 {
-    private ContextMenu appearanceMenu = null!;
+    private ThemedMenu appearanceMenu = null!;
     private void InitializeAppearance()
     {
-        appearanceMenu = new ContextMenu { Template = (ControlTemplate)FindResource("AppearanceMenuTemplate"), FontSize = 11,
-            Foreground = (Brush)FindResource("TextBrush") };
-        var refresh = new MenuItem { Header = "Uppdatera portar", Tag = "refresh" };
+        appearanceMenu = new ThemedMenu(this, preview);
+        var refresh = new MenuItem { Header = UiText.T("Uppdatera portar"), Tag = "refresh" };
+        var settingsItem = new MenuItem { Header = UiText.T("Inställningar…"), Tag = "settings" };
+        settingsItem.Click += (_, _) => { appearanceMenu.IsOpen = false; Dispatcher.BeginInvoke(() => CreateSettingsWindow().ShowDialog()); };
         refresh.Click += Refresh_Click; appearanceMenu.Items.Add(refresh);
-        var development = new MenuItem { Header = "Bara utveckling", Tag = "development", IsCheckable = true };
+        var development = new MenuItem { Header = UiText.T("Bara utveckling"), Tag = "development", IsCheckable = true };
         development.Click += DevOnly_Click; appearanceMenu.Items.Add(development);
-        var pin = new MenuItem { Header = "Fäst överst", Tag = "pin", IsCheckable = true };
+        var pin = new MenuItem { Header = UiText.T("Fäst överst"), Tag = "pin", IsCheckable = true };
         pin.Click += Pin_Click; appearanceMenu.Items.Add(pin);
-        var addLaunch = new MenuItem { Header = "Ny snabbstart…", Tag = "add-launch" };
+        var addLaunch = new MenuItem { Header = UiText.T("Ny snabbstart…"), Tag = "add-launch" };
         addLaunch.Click += Add_Click; appearanceMenu.Items.Add(addLaunch);
-        var quickstarts = new MenuItem { Header = "Hantera snabbstarter…", Tag = "quickstarts" };
+        var quickstarts = new MenuItem { Header = UiText.T("Hantera snabbstarter…"), Tag = "quickstarts" };
         quickstarts.Click += QuickStarts_Click; appearanceMenu.Items.Add(quickstarts);
-        var filter = new MenuItem { Header = "Filtrera…  (Ctrl+F)", Tag = "filter" };
+        var filter = new MenuItem { Header = UiText.T("Filtrera…  (Ctrl+F)"), Tag = "filter" };
         filter.Click += (_, _) => { appearanceMenu.IsOpen = false; Dispatcher.BeginInvoke(() => OpenFilter()); }; appearanceMenu.Items.Add(filter);
         appearanceMenu.Items.Add(new Separator());
-        appearanceMenu.Items.Add(new MenuItem { Header = "EDITOR", IsEnabled = false, FontSize = 9 });
-        foreach (var choice in Editor.All)
-        {
-            var installed = !preview && choice.Find() is not null;
-            var item = new MenuItem { Header = choice.Name, IsCheckable = true, Tag = choice, IsEnabled = installed || preview,
-                ToolTip = installed ? "Öppna projekt i " + choice.Name : choice.Name + " hittades inte på den här datorn" };
-            item.Click += (_, _) => SetEditor(choice);
-            appearanceMenu.Items.Add(item);
-        }
+        appearanceMenu.Items.Add(settingsItem);
         appearanceMenu.Items.Add(new Separator());
-        var notify = new MenuItem { Header = "Notiser", Tag = "notify", IsCheckable = true,
-            ToolTip = "Meddelar när en tjänst slutar svara, en snabbstart misslyckas eller en kodassistents kvot blir låg eller återställs." };
-        notify.Click += (_, _) => SetOption(() => settings.Notifications = notify.IsChecked, () => settings.Notifications = !notify.IsChecked);
-        appearanceMenu.Items.Add(notify);
-        var toTray = new MenuItem { Header = "Stäng till systemfältet", Tag = "tray", IsCheckable = true,
-            ToolTip = "Krysset döljer fönstret och Otter Monitor fortsätter bevaka i systemfältet. Avsluta via menyn." };
-        toTray.Click += (_, _) => SetOption(() => settings.CloseToTray = toTray.IsChecked, () => settings.CloseToTray = !toTray.IsChecked);
-        appearanceMenu.Items.Add(toTray);
-        appearanceMenu.Items.Add(new Separator());
-        appearanceMenu.Items.Add(new MenuItem { Header = "BAKGRUND", IsEnabled = false, FontSize = 9 });
-        var border = new MenuItem { Header = "Visa fönsterram", IsCheckable = true, Tag = "border" };
-        border.Click += (_, _) => SetAppearance(settings.Appearance with { ShowBorder = border.IsChecked });
-        appearanceMenu.Items.Add(border);
-        var colors = new MenuItem { Header = "Färg och transparens…" };
-        colors.Click += (_, _) =>
-        {
-            appearanceMenu.IsOpen = false;
-            Dispatcher.BeginInvoke(() => CreateAppearanceDialog().ShowDialog());
-        };
-        appearanceMenu.Items.Add(colors); appearanceMenu.Items.Add(new Separator());
-        foreach (var mode in Enum.GetValues<BackgroundMode>())
-        {
-            var item = new MenuItem { Header = mode.ToString(), IsCheckable = true, Tag = mode,
-                ToolTip = mode switch { BackgroundMode.Normal => "Otter Monitors vanliga solida bakgrund", BackgroundMode.Opaque => "En solid yta i din valda färg",
-                    BackgroundMode.Clear => "Färgad transparens utan suddig bakgrund", BackgroundMode.Blur => "Suddig glasbakgrund", _ => "Windows Acrylic med färgton" } };
-            item.Click += (_, _) => SetAppearance(settings.Appearance with { Mode = mode });
-            appearanceMenu.Items.Add(item);
-        }
-        appearanceMenu.Items.Add(new Separator());
-        var reset = new MenuItem { Header = "Återställ utseende" };
-        reset.Click += (_, _) => SetAppearance(new()); appearanceMenu.Items.Add(reset);
-        appearanceMenu.Items.Add(new Separator());
-        var exit = new MenuItem { Header = "Avsluta Otter Monitor", Tag = "exit" };
+        var exit = new MenuItem { Header = UiText.T("Avsluta Otter Monitor"), Tag = "exit" };
         exit.Click += (_, _) => { appearanceMenu.IsOpen = false; Dispatcher.BeginInvoke(ExitApplication); }; appearanceMenu.Items.Add(exit);
         foreach (var item in appearanceMenu.Items.OfType<MenuItem>()) item.Style = (Style)FindResource("AppearanceMenuItem");
         foreach (var separator in appearanceMenu.Items.OfType<Separator>()) separator.Style = (Style)FindResource("MenuSeparator");
         appearanceMenu.Opened += (_, _) => UpdateAppearanceMenu();
-        ContextMenu = appearanceMenu;
+        ContextMenu = new ContextMenu();
+        ContextMenuOpening += (_, args) =>
+        {
+            // Keep process and quick-start row context menus independent.
+            var target = args.OriginalSource as DependencyObject;
+            while (target is not null && !ReferenceEquals(target, this))
+            {
+                if (target is FrameworkElement element && element.ContextMenu is { } own && !ReferenceEquals(own, ContextMenu)) return;
+                target = target is Visual ? VisualTreeHelper.GetParent(target) : LogicalTreeHelper.GetParent(target);
+            }
+            args.Handled = true;
+            appearanceMenu.PlacementTarget = null; appearanceMenu.Placement = PlacementMode.MousePoint;
+            UpdateAppearanceMenu(); appearanceMenu.IsOpen = true;
+        };
         ApplyAppearance(settings.Appearance);
     }
 
     private void UpdateAppearanceMenu()
     {
         foreach (var item in appearanceMenu.Items.OfType<MenuItem>())
-            if (item.Tag is BackgroundMode mode) item.IsChecked = settings.Appearance.Mode == mode;
-            else if (item.Tag is "border") item.IsChecked = settings.Appearance.ShowBorder;
-            else if (item.Tag is "development") item.IsChecked = developmentOnly;
+            if (item.Tag is "development") item.IsChecked = developmentOnly;
             else if (item.Tag is "pin") item.IsChecked = Topmost;
-            else if (item.Tag is Editor choice) item.IsChecked = choice == CurrentEditor;
-            else if (item.Tag is "notify") item.IsChecked = settings.Notifications;
-            else if (item.Tag is "tray") item.IsChecked = settings.CloseToTray;
     }
 
-    private void SetEditor(Editor choice)
+    private bool SetEditor(string? id)
     {
         var previous = settings.Editor;
-        settings.Editor = choice.Id;
-        if (!Save()) settings.Editor = previous;
-        editor = null; Changed(nameof(CurrentEditor)); Changed(nameof(EditorActionLabel)); UpdateAppearanceMenu();
+        settings.Editor = id;
+        if (!Save()) { settings.Editor = previous; return false; }
+        editor = null; Changed(nameof(CurrentEditor)); Changed(nameof(EditorActionLabel)); return true;
     }
 
-    private void SetOption(Action apply, Action undo)
+    private bool SetGeneralOptions(bool notifications, bool closeToTray)
     {
-        apply();
-        if (!Save()) undo();
-        UpdateAppearanceMenu(); UpdateTray();
+        var previous = (settings.Notifications, settings.CloseToTray);
+        settings.Notifications = notifications; settings.CloseToTray = closeToTray;
+        if (!Save()) { (settings.Notifications, settings.CloseToTray) = previous; return false; }
+        UpdateTray(); return true;
     }
     private bool SetAppearance(AppearanceSettings appearance)
     {
@@ -119,14 +89,39 @@ public partial class MainWindow
         MaterialSurface.Background = appearance.Mode == BackgroundMode.Normal ? Brushes.Transparent
             : new SolidColorBrush(Color.FromArgb(appearance.Mode == BackgroundMode.Opaque ? (byte)255 : appearance.TintAlpha, color.R, color.G, color.B));
         MaterialSurface.BorderBrush = appearance.ShowBorder ? (Brush)FindResource("LineBrush") : Brushes.Transparent;
-        DropdownButton.ToolTip = $"Verktyg och inställningar\nBakgrund · {appearance.Mode}";
+        DropdownButton.ToolTip = UiText.F("Verktyg och inst\u00E4llningar\nBakgrund \u00B7 {0}", appearance.Mode);
         if (modeChanged) material.Apply(); else material.ApplyTint();
+        appearanceMenu.ApplyAppearance(appearance, material.Enabled);
+        UpdateOwnedAppearance(this, appearance, material.Enabled);
     }
-    public AppearanceDialog CreateAppearanceDialog() => new(settings.Appearance, ApplyAppearance, SetAppearance, preview) { Owner = this };
+    private static void UpdateOwnedAppearance(Window owner, AppearanceSettings appearance, bool enabled)
+    {
+        foreach (var child in owner.OwnedWindows.Cast<Window>().ToArray())
+        {
+            if (child is SettingsWindow settingsWindow) settingsWindow.ApplyAppearance(appearance, enabled);
+            else if (child is AppearanceDialog appearanceDialog) appearanceDialog.ApplyInheritedAppearance(appearance, enabled);
+            UpdateOwnedAppearance(child, appearance, enabled);
+        }
+    }
+    public AppearanceDialog CreateAppearanceDialog()
+    {
+        var dialog = new AppearanceDialog(settings.Appearance, ApplyAppearance, SetAppearance, preview) { Owner = this };
+        dialog.ApplyInheritedAppearance(settings.Appearance, material.Enabled);
+        return dialog;
+    }
     private void Appearance_Click(object sender, RoutedEventArgs e)
     {
-        appearanceMenu.PlacementTarget = DropdownButton; appearanceMenu.Placement = PlacementMode.Bottom;
+        appearanceMenu.PlacementTarget = sender as FrameworkElement ?? DropdownButton; appearanceMenu.Placement = PlacementMode.Bottom;
+        appearanceMenu.AlignToLeft = ReferenceEquals(appearanceMenu.PlacementTarget, OtterMenuButton);
         UpdateAppearanceMenu(); appearanceMenu.IsOpen = true;
+    }
+    public Window OpenMenuPreview()
+    {
+        Appearance_Click(OtterMenuButton, new()); return appearanceMenu;
+    }
+    public void LoadThemePreview()
+    {
+        if (preview) SetAppearance(settings.Appearance with { Color = "#284739", Transparency = 35 });
     }
 
     private async Task VerifyAppearanceAsync(Action<bool, string> check)
@@ -139,19 +134,24 @@ public partial class MainWindow
                 ConfigureCompactWindow(); UpdateLayout();
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
                 Appearance_Click(DropdownButton, new()); appearanceMenu.UpdateLayout();
-                check(appearanceMenu.IsOpen && DropdownButton.IsVisible && appearanceMenu.Items.OfType<MenuItem>().Count(item => item.Tag is BackgroundMode) == 5,
-                    (compact ? "Compact" : "Standard") + " dropdown opens with all tools and five background materials");
+                check(appearanceMenu.IsOpen && DropdownButton.IsVisible && appearanceMenu.Items.OfType<MenuItem>().Select(item => item.Tag?.ToString()).SequenceEqual(new[] { "refresh", "development", "pin", "add-launch", "quickstarts", "filter", "settings", "exit" }),
+                    "The compact dropdown contains only quick actions, Settings and Exit, in that order");
+                appearanceMenu.IsOpen = false;
+                OtterMenuButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                check(appearanceMenu.IsOpen && ReferenceEquals(appearanceMenu.PlacementTarget, OtterMenuButton)
+                    && appearanceMenu.AlignToLeft && OtterMenuLogo.Source is not null && OtterMenuButton.IsVisible, "A single Otter-logo click opens the same menu as the dropdown arrow, aligned to the left");
+                appearanceMenu.Items.OfType<MenuItem>().Single(item => item.Tag is "refresh").RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                check(!appearanceMenu.IsOpen, "Selecting a menu action dismisses the themed menu");
                 appearanceMenu.IsOpen = false;
                 await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
-                foreach (var item in appearanceMenu.Items.OfType<MenuItem>().Where(item => item.Tag is BackgroundMode))
+                foreach (var mode in Enum.GetValues<BackgroundMode>())
                 {
-                    item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-                    check(settings.Appearance.Mode == (BackgroundMode)item.Tag && appearanceMenu.Items.OfType<MenuItem>().Count(menu => menu.Tag is BackgroundMode && menu.IsChecked) == 1 && Opacity == 1,
-                        (compact ? "Compact" : "Standard") + " selecting " + item.Tag + " preserves opaque controls and one checked material");
+                    check(SetAppearance(settings.Appearance with { Mode = mode }) && settings.Appearance.Mode == mode && Opacity == 1,
+                        "Selecting " + mode + " preserves opaque controls and saves the chosen material");
                 }
             }
-            var border = appearanceMenu.Items.OfType<MenuItem>().Single(item => item.Tag is "border");
-            border.IsChecked = false; border.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            await VerifyLiveAppearanceAsync(check, original);
+            SetAppearance(settings.Appearance with { ShowBorder = false });
             check(settings.Appearance.ShowBorder == false && MaterialSurface.BorderBrush == Brushes.Transparent, "Border toggle hides the window rim without removing its hit-test area");
             var observed = new List<AppearanceSettings>(); AppearanceSettings? committed = null;
             var dialog = new AppearanceDialog(original, value => { observed.Add(value); ApplyAppearance(value); }, value => { committed = value; return true; }, true) { Owner = this };
@@ -172,10 +172,50 @@ public partial class MainWindow
         }
         finally { appearanceMenu.IsOpen = false; SetAppearance(original); ConfigureCompactWindow(); UpdateLayout(); }
     }
+    private async Task VerifyLiveAppearanceAsync(Action<bool, string> check, AppearanceSettings original)
+    {
+        var window = CreateSettingsWindow();
+        window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = window.Top = -16000;
+        window.ShowActivated = false; window.ShowInTaskbar = false;
+        try
+        {
+            window.Show();
+            Appearance_Click(DropdownButton, new());
+            window.VerifyMaterial(check); appearanceMenu.VerifyMaterial(check);
+            foreach (var mode in Enum.GetValues<BackgroundMode>())
+            {
+                var value = original with { Mode = mode, Color = "#284739", Transparency = 42, ShowBorder = false };
+                SetAppearance(value);
+                check(window.InheritedAppearance == value && appearanceMenu.Appearance == value && appearanceMenu.IsOpen,
+                    "Open Settings and menu inherit " + mode + ", color, transparency and border changes immediately");
+            }
+            SetAppearance(original); appearanceMenu.IsOpen = false;
+            AppearanceDialog? colors = null;
+            var observed = new List<AppearanceSettings>();
+            colors = new AppearanceDialog(original, value =>
+            {
+                observed.Add(value); ApplyAppearance(value);
+                check(window.InheritedAppearance == value && appearanceMenu.Appearance == value,
+                    "Live color preview updates Settings and the menu before saving");
+                if (colors is { IsVisible: true }) check(colors.InheritedAppearance == value, "The color dialog inherits the same live background");
+            }, SetAppearance, true) { Owner = window, WindowStartupLocation = WindowStartupLocation.Manual, Left = -16000, Top = -16000, ShowActivated = false, ShowInTaskbar = false };
+            colors.Show();
+            await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            var updates = (window.NativeApplyCount, appearanceMenu.NativeApplyCount);
+            colors.VerifyInputs(check, observed, cancel: true);
+            check(window.InheritedAppearance == original && appearanceMenu.Appearance == original && material.Appearance == original,
+                "Cancelling color preview restores the background of every surface");
+            check((window.NativeApplyCount, appearanceMenu.NativeApplyCount) == updates, "RGB and transparency preview keep Settings/menu native glass intact");
+        }
+        finally { appearanceMenu.IsOpen = false; window.Close(); SetAppearance(original); }
+    }
 }
 
 public sealed class AppearanceDialog : Window
 {
+    private readonly WindowMaterial material;
+    internal string DescribeMaterial() => material.Describe();
+    internal AppearanceSettings InheritedAppearance => material.Appearance;
     private readonly AppearanceSettings original;
     private readonly Action<AppearanceSettings> apply;
     private readonly Func<AppearanceSettings, bool> save;
@@ -186,18 +226,18 @@ public sealed class AppearanceDialog : Window
     private readonly Border swatch = new() { Width = 36, Height = 36, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 0, 10, 0) };
     private bool updating, saved, ready;
     private AppearanceSettings draft;
-    private readonly Button saveButton = new() { Content = "Spara", IsDefault = true };
+    private readonly Button saveButton = new() { Content = UiText.T("Spara"), IsDefault = true };
 
     public AppearanceDialog(AppearanceSettings appearance, Action<AppearanceSettings> apply, Func<AppearanceSettings, bool> save, bool preview)
     {
         original = draft = appearance.Normalize(); this.apply = apply; this.save = save;
-        Style = (Style)FindResource(typeof(Window)); Title = "Bakgrund · färg och transparens";
-        _ = new WindowMaterial(this, enabled: !preview);
+        Style = (Style)FindResource(typeof(Window)); Title = UiText.T("Bakgrund · färg och transparens");
+        material = new WindowMaterial(this, enabled: !preview) { Appearance = original };
         Width = 420; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         var panel = new StackPanel { Margin = new Thickness(24) };
-        panel.Children.Add(new TextBlock { Text = "Färg och transparens", FontSize = 21, FontWeight = FontWeights.SemiBold });
-        panel.Children.Add(new TextBlock { Text = $"{draft.Mode} · ändringar förhandsvisas direkt", FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 7, 0, 20) });
+        panel.Children.Add(new TextBlock { Text = UiText.T("Färg och transparens"), FontSize = 21, FontWeight = FontWeights.SemiBold });
+        panel.Children.Add(new TextBlock { Text = UiText.F("{0} \u00B7 \u00E4ndringar f\u00F6rhandsvisas direkt", draft.Mode), FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 7, 0, 20) });
         var palette = new WrapPanel { Margin = new Thickness(0, 0, 0, 15) };
         foreach (var value in new[] { "#372B53", "#23242D", "#142B38", "#284739", "#694755", "#716193", "#FFFFFF", "#000000" })
         {
@@ -209,6 +249,18 @@ public sealed class AppearanceDialog : Window
         panel.Children.Add(palette);
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(swatch); row.Children.Add(hex);
+        var eyedropper = new Button { Content = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 10,6 L 3,13 L 2,17 L 6,16 L 13,9 M 8,4 L 15,11 M 11,5 L 14,2 C 16,0 20,4 18,6 L 15,9"),
+                Stroke = (Brush)FindResource("TextBrush"), StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 17, Height = 17, Stretch = Stretch.Uniform }, Width = 34, Height = 34,
+            Padding = new Thickness(6), Margin = new Thickness(8, 0, 0, 0), ToolTip = UiText.T("Välj färg från skärmen") };
+        System.Windows.Automation.AutomationProperties.SetName(eyedropper, UiText.T("Välj färg från skärmen"));
+        eyedropper.Click += async (_, _) =>
+        {
+            eyedropper.IsEnabled = false;
+            try { if (await ScreenColorPicker.PickAsync(this) is { } picked) hex.Text = $"#{picked.R:X2}{picked.G:X2}{picked.B:X2}"; }
+            catch (Exception) { error.Text = UiText.T("Skärmen kunde inte läsas. Ange färgen med HEX eller RGB."); }
+            finally { eyedropper.IsEnabled = true; }
+        };
+        row.Children.Add(eyedropper);
         row.Children.Add(new TextBlock { Text = "#RRGGBB", FontSize = 10, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         panel.Children.Add(row); panel.Children.Add(error);
         foreach (var (label, slider) in new[] { ("R", red), ("G", green), ("B", blue) })
@@ -219,22 +271,22 @@ public sealed class AppearanceDialog : Window
             DockPanel.SetDock(text, Dock.Left); channel.Children.Add(text); channel.Children.Add(slider); panel.Children.Add(channel);
             slider.ValueChanged += (_, _) => { if (updating) return; hex.Text = $"#{(int)red.Value:X2}{(int)green.Value:X2}{(int)blue.Value:X2}"; };
         }
-        panel.Children.Add(new TextBlock { Text = "Färgtonens transparens", FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 0) });
+        panel.Children.Add(new TextBlock { Text = UiText.T("Färgtonens transparens"), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 0) });
         transparency.IsEnabled = draft.Mode is BackgroundMode.Clear or BackgroundMode.Blur or BackgroundMode.Acrylic;
         transparency.Style = (Style)FindResource("AppearanceSlider");
         panel.Children.Add(transparency); panel.Children.Add(percent);
         percent.Foreground = (Brush)FindResource("MutedBrush"); percent.FontSize = 11;
-        panel.Children.Add(new TextBlock { Text = draft.Mode == BackgroundMode.Normal ? "Normal använder Otter Monitors standardbakgrund. Färgen sparas för de andra lägena."
-            : draft.Mode == BackgroundMode.Opaque ? "Opaque ger en helt solid yta i färgen ovan."
-            : "0 % = solid färgton · 100 % = ingen färgton.\nBakgrundseffekten följer det valda läget.", FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 12, 0, 0) });
+        panel.Children.Add(new TextBlock { Text = draft.Mode == BackgroundMode.Normal ? UiText.T("Normal använder Otter Monitors standardbakgrund. Färgen sparas för de andra lägena.")
+            : draft.Mode == BackgroundMode.Opaque ? UiText.T("Opaque ger en helt solid yta i färgen ovan.")
+            : UiText.T("0 % = solid färgton · 100 % = ingen färgton.\nBakgrundseffekten följer det valda läget."), FontSize = 10, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 12, 0, 0) });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 24, 0, 0) };
-        actions.Children.Add(new Button { Content = "Avbryt", IsCancel = true, Margin = new Thickness(0, 0, 8, 0) });
+        actions.Children.Add(new Button { Content = UiText.T("Avbryt"), IsCancel = true, Margin = new Thickness(0, 0, 8, 0) });
         saveButton.Style = (Style)FindResource("PrimaryButton");
-        saveButton.Click += (_, _) => { if (!AppearanceSettings.IsColor(hex.Text)) { error.Text = "Ange sex hextecken efter #."; return; } if (save(draft)) { saved = true; DialogResult = true; } };
+        saveButton.Click += (_, _) => { if (!AppearanceSettings.IsColor(hex.Text)) { error.Text = UiText.T("Ange sex hextecken efter #."); return; } if (save(draft)) { saved = true; DialogResult = true; } };
         actions.Children.Add(saveButton); panel.Children.Add(actions); Content = panel;
         hex.TextChanged += (_, _) =>
         {
-            if (!AppearanceSettings.IsColor(hex.Text)) { error.Text = "Ange en färg som #372B53."; return; }
+            if (!AppearanceSettings.IsColor(hex.Text)) { error.Text = UiText.T("Ange en färg som #372B53."); return; }
             error.Text = "";
             draft = draft with { Color = hex.Text.ToUpperInvariant() };
             var color = (Color)ColorConverter.ConvertFromString(draft.Color);
@@ -248,6 +300,12 @@ public sealed class AppearanceDialog : Window
         Closed += (_, _) => { if (!saved) apply(original); };
     }
 
+    internal void ApplyInheritedAppearance(AppearanceSettings value, bool enabled)
+    {
+        var backendChanged = material.Appearance.Mode != value.Mode || material.Enabled != enabled;
+        material.Appearance = value; material.Enabled = enabled;
+        if (backendChanged) material.Apply(); else material.ApplyTint();
+    }
     internal void VerifyInputs(Action<bool, string> check, List<AppearanceSettings> observed, bool cancel)
     {
         hex.Text = "#1468AB"; transparency.Value = 88;

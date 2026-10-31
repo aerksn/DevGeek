@@ -17,7 +17,7 @@ public sealed class PortService
         var owners = new Dictionary<int, (string Name, DateTime? Started, string? Path, ProjectIdentity? Project)>();
         foreach (var pid in raw.Select(r => r.Pid).Distinct())
         {
-            var name = pid is 0 or 4 ? "System" : "Okänd process";
+            var name = pid is 0 or 4 ? "System" : UiText.T("Okänd process");
             DateTime? started = null;
             string? path = null;
             try
@@ -71,19 +71,19 @@ public sealed class PortService
             }
             finally { Marshal.FreeHGlobal(buffer); }
         }
-        throw new IOException("Portlistan ändrades för snabbt. Försök igen.");
+        throw new IOException(UiText.T("Portlistan ändrades för snabbt. Försök igen."));
     }
 
     public async Task StopAsync(PortEntry entry)
     {
-        if (entry.IsDocker || !entry.CanStop) throw new InvalidOperationException("Den här processen kan inte stoppas från Otter Monitor.");
+        if (entry.IsDocker || !entry.CanStop) throw new InvalidOperationException(UiText.T("Den här processen kan inte stoppas från Otter Monitor."));
         using var process = Process.GetProcessById(entry.Pid);
         // Hold the original kernel handle while validating and terminating, protecting against PID reuse.
         _ = process.Handle;
         if (process.StartTime.ToUniversalTime() != entry.StartedUtc || !string.Equals(process.ProcessName, entry.Name, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Processen har ändrats. Uppdatera portlistan och försök igen.");
+            throw new InvalidOperationException(UiText.T("Processen har ändrats. Uppdatera portlistan och försök igen."));
         if (!Scan().Any(p => p.Pid == entry.Pid && p.Port == entry.Port && p.Address == entry.Address))
-            throw new InvalidOperationException("Processen lyssnar inte längre på den här porten.");
+            throw new InvalidOperationException(UiText.T("Processen lyssnar inte längre på den här porten."));
         process.Kill(entireProcessTree: true);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
         await process.WaitForExitAsync(timeout.Token);

@@ -2,9 +2,27 @@
 
 <img src="assets/otter-mark.png" width="88" alt="Otter Monitor icon">
 
-En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Svenskt, minimalistiskt gränssnitt med frostat glas, dämpade plommonfärger, ljusblå accenter och diskreta stoppknappar med fylld symbol och svagt markerad yta. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
+En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# / .NET 10 med WPF. Engelskt eller svenskt, minimalistiskt gränssnitt med Bricolage Grotesque, frostat glas, dämpade plommonfärger, ljusblå accenter och diskreta stoppknappar. Port- och processlogiken har inga externa bibliotek; appens Billing-session använder Microsofts officiella WebView2-SDK.
 
 ## Installera
+
+### Nytt i 1.7
+
+1.7.1 rättar Anthropics Google-inloggning: Googles popup får en riktig WebView2-barnvy med samma profil och bevarad `window.opener`, i stället för att ersätta Billing-sidan. Återkoppling med `postMessage`, start från `about:blank` och automatisk stängning testas med lokala syntetiska sidor; testet använder inga riktiga inloggningsuppgifter.
+
+1.7.2 läser totalsaldot från Claude Consoles monetära Billing-länk i sidhuvudet. Den aktuella layouten visar köpta och kampanjkrediter separat i saldokortet; appen använder Anthropics eget totalsaldo och summerar inte belopp från fakturor eller kampanjtabellen. Kampanjkrediter kan vara begränsade till vissa modeller och produkter. Den äldre enkla saldokortslayouten stöds fortfarande. En misslyckad avläsning utan tidigare saldo visas som **unavailable** i stället för **waiting**.
+
+Claude Console kräver en aktiv renderer för att ladda kontovärden. Anthropic-vyn håller därför sin renderer aktiv i ett dolt värdfönster; inget webbläsarfönster behöver visas för avläsningen. Den dolda vyn får också en normal skrivbordsyta redan före första visningen. Både realistiska, syntetiska Billing-sidor och en avläsning med befintlig inloggning har verifierats.
+
+- Gränssnittet använder det medföljande Bricolage Grotesque (12pt, optimerat för liten text), med svenska tecken. Ingen separat typsnittsinstallation behövs. Licensen finns i `licenses/BricolageGrotesque-OFL.txt` och följer med den publicerade appen.
+- Engelska är standardspråk. Välj **Settings → General → Language → Svenska** för svenska. Språkvalet börjar gälla nästa gång appen öppnas; avsluta via menyn och starta igen, eftersom krysset normalt bara döljer fönstret.
+- **API balances / API-saldon** och **Coding assistants / Kodassistenter** har egna kort under Synlighet. API-saldona ligger kvar i den kompakta överraden med loggor, inklusive Claude-symbolen för Anthropic API. Stoppknapparna är mindre (28 × 24).
+- **Anthropic API** visar kontots kvarvarande USD-krediter från `platform.claude.com/settings/billing` (även den äldre `console.anthropic.com`-adressen stöds). Klicka på Anthropic API och öppna Billing för att logga in och välja organisation. Ingen modellförfrågan eller API-nyckel behövs. Saldoavläsningen uppdateras ungefär var femte minut i appens egen WebView2-profil, `anthropic-profile`. Sessionscheckpointen `anthropic-session.bin` krypteras med Windows DPAPI och är separat från Claude Code, OpenAI och JEV. En oläsbar sida behåller det senaste saldot som äldre; appen gissar aldrig kvarvarande krediter från förbrukningen. Ändrad Billing-layout kan kräva en uppdaterad läsare.
+- Färgdialogen har en **skärmpipett** bredvid HEX-fältet. Klicka på pipetten och sedan på en pixel på skärmen. **Esc** avbryter. HEX, RGB och förhandsvisningen uppdateras tillsammans, och **Spara/Avbryt** fungerar som tidigare. Skärmbilden används bara i minnet medan pipetten är aktiv och sparas eller skickas inte.
+
+Kontrollera Anthropic-läsaren med `node --test tests/AnthropicBalanceReader/reader.test.cjs`. Den syntetiska WebView2-kontrollen körs med `OtterMonitor.exe --verify-anthropic-background --test-root <egen testmapp> --report <rapportfil>` och kontaktar inget konto. Förhandsvisningar är engelska som standard; lägg till `--swedish` för svenska eller `--anthropic-balance-dialog` för anslutningsdialogen.
+
+Interaktiva förhandsvisningar med `--preview --stay-open` använder verkligt Windows-glas, även i Inställningar och färgdialogen. PNG-exporter visar fortfarande reservytan eftersom WPF:s bildrendering inte fångar DWM-effekten.
 
 Kör `installer.ps1`. Den bygger appen och skapar **dist/OtterMonitor-Setup-<version>.exe** med [Inno Setup 6](https://jrsoftware.org/isinfo.php) (installera en gång med `winget install --id JRSoftware.InnoSetup -e --scope user`). Installern:
 
@@ -23,12 +41,12 @@ Versionen sätts i `Directory.Build.props`. Utan installation fungerar också `b
 3. Gruppens **stoppknapp** visar vilken process eller container och vilka portar som berörs innan stoppet utförs.
 4. **Snabbstarter ligger i samma lista som portarna.** Lägg till en via **⌄ → Ny snabbstart…**. Dialogen söker igenom dina projektmappar (som standard `C:\repos` och andra vanliga kodmappar som finns, eller de mappar du väljer med mappknappen) och listar projekt som går att starta. Välj ett projekt och ett av dess kommandon så fylls namn, arbetsmapp och kommando i; allt går att ändra innan du sparar, och dubbelklick sparar direkt med det föreslagna kommandot. Projekt som redan har en snabbstart märks **tillagd**. Du kan också fylla i mapp och kommando själv, exempelvis `bun run dev`. En snabbstart som inte har någon öppen port visas nedtonad under portarna med **▶**. När kommandot körs och dess process lyssnar flyttar den upp som en vanlig portrad med en liten blixt (⚡) bredvid namnet. Stopp, omstart och logg på den raden gäller då hela snabbstarten. Högerklick på en snabbstartsrad ger start, omstart, logg, redigera, terminal och editor. **⌄ → Hantera snabbstarter…** öppnar fortfarande det separata fönstret med alla kort. Nya installationer börjar med en tom snabbstartslista.
 5. **Lägg till** och **Redigera** hanterar namn, arbetsmapp och kommando. Kommandon körs i bakgrunden via `cmd.exe /d /s /c`; exempelvis `bun run dev`, `npm run dev`, `dotnet watch` eller `docker compose up -d`.
-6. **Logg** visar kommandots utdata i ett eget fönster: namn, kommando och mapp överst med körstatus, rader i monospace där fel visas rosa, varningar gula och lyckade steg (✓, ready) gröna, och tidsstämplar och `[verktyg]`-prefix nedtonade. Loggen följer slutet tills du rullar upp; då visas **↓ Till slutet**. **Ctrl+F** filtrerar rader, rader kan markeras och kopieras (Ctrl+C), **Visa fil** öppnar loggfilen i Utforskaren, och för snabbstarter finns **Starta om** och **Stoppa** direkt i fönstret. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller uppdatering, utvecklingsfilter, fäst överst, snabbstarter, filter, editorval, notiser, systemfältsval, bakgrundsval och Avsluta. Codex/Claude ligger kvar i botten medan portarna scrollas.
+6. **Logg** visar kommandots utdata i ett eget fönster: namn, kommando och mapp överst med körstatus, rader i monospace där fel visas rosa, varningar gula och lyckade steg (✓, ready) gröna, och tidsstämplar och `[verktyg]`-prefix nedtonade. Loggen följer slutet tills du rullar upp; då visas **↓ Till slutet**. **Ctrl+F** filtrerar rader, rader kan markeras och kopieras (Ctrl+C), **Visa fil** öppnar loggfilen i Utforskaren, och för snabbstarter finns **Starta om** och **Stoppa** direkt i fönstret. Appen har endast den kompakta portöversikten, även när äldre inställningar anger standardläge. Den är 360 px bred, med minst tre grupprader och 10 px indrag till vänster. Höjden följer listan upp till 342 px, sedan scrollas portarna. Namn och portar delar rad; status, RAM, CPU och körtid visas under. Överraden har klickbart OpenAI-saldo, dragyta, **⌄**, minimera och stäng. Menyn innehåller bara uppdatering, utvecklingsfilter, fäst överst, snabbstarter och filter, följt av Inställningar och Avsluta. Editor, notiser, systemfält och utseende finns i inställningsfönstret. Codex/Claude ligger kvar i botten medan portarna scrollas.
 7. **Omstartsikonen** bland radens snabbknappar startar om en Docker-container eller en snabbstart. På snabbstartskortet finns samma ikon bredvid Redigera; den aktiveras när kommandot körs. Omstart avslutar hela den tidigare processgruppen innan kommandot körs igen. En öppen loggvy följer med till den nya körningen och äldre loggar bevaras.
 8. Körande snabbstarter **återansluts automatiskt** när Otter Monitor öppnas igen och får statusen ”återansluten”. Starta-knappen blir Stoppa, och samma snabbstart kan inte startas dubbelt. Återanslutningen gäller körningar som startats med den här versionen av Otter Monitor.
 9. **Bekräftelser** som "Kopierade …", "Öppnade terminal …" eller "Stoppade …" visas som en liten ruta längst ned i listan i tre sekunder och tar aldrig emot klick. Problem, till exempel ett upptaget urklipp, får en varningsikon och visas i fem sekunder. Fel som kräver ett beslut visas fortfarande som dialog. När inget körs visar listan uttern, en kort förklaring och knappen **Ny snabbstart**; döljer utvecklingsfiltret andra portar säger förklaringen det.
 10. **Börja skriva** var som helst i fönstret, eller tryck **Ctrl+F**, för att filtrera. Filtret matchar namn, port, PID, runtime, projektmapp och snabbstartens namn, kommando och mapp. En sökning letar bland alla lyssnande portar, även utanför **Bara utveckling**. **↓** går till listan, **Enter** öppnar första träffen och **Esc** rensar filtret.
-11. **Krysset döljer fönstret till systemfältet** och Otter Monitor fortsätter bevaka. Klick på ikonen eller **Win+Shift+O** visar och döljer fönstret. Om Win+Shift+O redan används av ett annat program används **Ctrl+Alt+O**; ikonens tips visar vilket. Avsluta via **⌄ → Avsluta Otter Monitor** eller högerklick på ikonen. Stäng av **⌄ → Stäng till systemfältet** för att krysset ska avsluta appen som tidigare. Startas Otter Monitor igen visas det redan öppna fönstret.
+11. **Krysset döljer fönstret till systemfältet** och Otter Monitor fortsätter bevaka. Klick på ikonen eller **Win+Shift+O** visar och döljer fönstret. Om Win+Shift+O redan används av ett annat program används **Ctrl+Alt+O**; ikonens tips visar vilket. Avsluta via **⌄ → Avsluta Otter Monitor** eller högerklick på ikonen. Stäng av **⌄ → Inställningar → Allmänt → Stäng till systemfältet** för att krysset ska avsluta appen som tidigare. Startas Otter Monitor igen visas det redan öppna fönstret.
 
 Inställningar och loggar sparas i `%LOCALAPPDATA%\OtterMonitor`. `settings.json` innehåller snabbstarterna och kan redigeras när appen är stängd. Föregående inställningsfil sparas som `.bak`. En trasig fil skrivs inte över vid inläsning. Loggfilerna ligger i `logs`; loggvyn visar de senaste 64 kB, hela filen bevaras. `sessions` sparar kopplingen mellan varje snabbstart och dess processgrupp. Behåll dessa filer medan miljöer körs.
 
@@ -51,7 +69,7 @@ Om tjänsten saknar ett verifierat HTTP-svar, eller kör en annan runtime, öppn
 
 **Högerklick** ger hela uppsättningen: **Öppna i webbläsaren**, **Kopiera http://localhost:3000** (den verifierade adressen när HTTP svarat, annars första porten), **Kopiera PID** eller **Kopiera container-ID**, **Öppna terminal i projektmappen**, **Öppna i editor**, **Visa logg**, **Starta om** och **Stoppa…**. Det uttryckliga webbläsarvalet öppnar aldrig en terminal som reserv. Radens stopp- och omstartsknappar är separata från dubbelklicket.
 
-**Editor** väljs under **⌄ → Editor**: Zed, VS Code, Cursor eller Rider. Utan eget val används den första installerade i den ordningen, så befintliga Zed-användare märker ingen skillnad. Editorer som inte hittas är gråade. Varje editor startas direkt via sin egen .exe med projektmappen som enda argument, aldrig via ett shell eller en `.cmd`-fil; VS Code och Cursor hittas i sina vanliga installationsmappar eller via deras startskript i PATH. Editorns egen inställning avgör om projektet öppnas i ett nytt eller befintligt fönster.
+**Editor** väljs under **⌄ → Inställningar → Allmänt → Editor**: Zed, VS Code, Cursor eller Rider. Utan eget val används den första installerade i den ordningen, så befintliga Zed-användare märker ingen skillnad. Editorer som inte hittas är gråade. Varje editor startas direkt via sin egen .exe med projektmappen som enda argument, aldrig via ett shell eller en `.cmd`-fil; VS Code och Cursor hittas i sina vanliga installationsmappar eller via deras startskript i PATH. Editorns egen inställning avgör om projektet öppnas i ett nytt eller befintligt fönster.
 
 **Visa logg** för en Docker-container visar `docker logs --tail 400` och uppdateras varannan sekund. Containerns stdout och stderr sorteras ihop efter Dockers tidsstämplar och färgkoder tas bort. Varje snabbstart och container har ett loggfönster; att be om det igen tar fram det öppna.
 
@@ -97,7 +115,7 @@ Kvoterna är separata från **OpenAI API-saldot i USD**. Båda visas samtidigt. 
 
 Saldot visas i överraden. **Både OpenAI-loggan och beloppet är klickbara** och öppnar saldokopplingen. Den tomma ytan bredvid fungerar som dragyta. Den vanliga appen läser det sparade saldot från din egen Billing-session; saknade värden visas som väntande. Designförhandsvisningar märks uttryckligen **exempel** och läser inga konton. Saldoknappen öppnar då en informationsdialog med kontofunktionerna avstängda.
 
-Kompaktlägets stoppknappar har en diskret kontursymbol utan färgad platta i viloläget. Rosa markering visas när musen hålls över knappen och tangentbordsfokus har en tydlig kant. Klickytan på 36 × 32 px och extra inre padding behålls. Knappen stoppar hela processgruppen efter bekräftelse.
+Kompaktlägets stoppknappar har en diskret kontursymbol utan färgad platta i viloläget. Rosa markering visas när musen hålls över knappen utan extra fokusram eller tryckmarkering. Knapparna är 28 × 24 px med mindre padding. Knappen stoppar hela processgruppen efter bekräftelse.
 
 ### Egen session i bakgrunden
 
@@ -117,11 +135,31 @@ Microsoft Edge WebView2 Runtime krävs. Den finns redan på många Windows-dator
 
 Bakgrundsläsning, dold omhämtning och återställning efter fullständigt avslutad app och WebView2-process verifieras med egna lokala testdata. OpenAI eller din inloggningsleverantör kan kräva ytterligare verifiering eller neka en inbyggd webbläsare; öppna då Billing-fönstret igen.
 
+## JEV-saldo
+
+**JEV** visas bredvid OpenAI-saldot i överraden och visar dina återstående pengar hos TypeSafe i USD. Klicka på **JEV · koppla**, välj **Logga in / Öppna Billing** och logga in på rätt konto och organisation. Appen läser bara beloppet under **Available credits** på [TypeSafe Billing](https://console.typesafe.ai/settings/billing), inte belopp från betalningshistoriken eller kostnaden för enskilda anrop. Noll kronor/dollar skiljs från saknade data.
+
+JEV använder en egen WebView2-profil (`jev-profile`), separat från OpenAI, Claude och din vanliga webbläsare. Efter inloggningen kan du dölja Billing-fönstret med **Dölj** eller krysset. Den dolda eller minimerade sidan uppdateras ungefär var femte minut medan Otter Monitor körs. En synlig sida, pågående inmatning eller extra betalningsdialog laddas inte om automatiskt. TypeSafes vanliga Settings-dialog får vara öppen, eftersom själva Billing-sidan visas där.
+
+Saldot och senaste avläsningstiden sparas i `jev-balance.json`. Sessionscookies för TypeSafe sparas i `jev-session.bin`, krypterat med Windows DPAPI; checkpointen gäller högst sju dagar och servern kan kräva ny inloggning tidigare. Beständiga cookies sparas av WebView2. **Koppla från** stoppar avläsningen och tar bort checkpointen, men behåller webbläsarprofilen. OpenAI och Claude påverkas inte. Om inloggningen går ut eller fältet inte kan läsas markeras det senaste saldot som **äldre**. Öppna då JEV Billing igen. Inga modellförfrågningar görs för saldoavläsningen.
+
+## Inställningar och synlighet
+
+Öppna **⌄ → Inställningar…** för en egen vy med samma färg, glas och rundade ram som huvudfönstret. På fliken **Synlighet** klickar du direkt på ögat för att växla mellan visa och dölj: **OpenAI-saldo**, **JEV-saldo**, **Codex** och **Claude Code** kan visas eller döljas oberoende av varandra. Ett kryssat öga betyder dold. Valen sparas direkt, huvudfönstret anpassar utrymmet och inställningarna behålls efter omstart. Äldre installationer fortsätter visa alla delar tills du väljer något annat.
+
+Synlighetsvalen påverkar bara huvudfönstret. Kontokopplingar, sparade inloggningar och kvotdata behålls. Alla fyra delar kan döljas; inställningarna finns fortfarande i menyn. Under **Allmänt** finns editorval, notiser och Stäng till systemfältet. Under **Utseende** finns bakgrundsmaterial, fönsterram, färg och transparens samt Återställ utseende. Flikarna håller fönstret kompakt, och längre innehåll går att rulla. Saldon och kodassistenternas kvotknappar har rundade hovringsytor. JEV använder den officiella TypeSafe-symbolen från konsolen; källan dokumenteras i `licenses/TypeSafe-logo-NOTICE.txt`.
+
 ## Bakgrund och färg
 
-Öppna **⌄** i överraden för verktyg och inställningar. Samma meny finns via högerklick på en tom yta eller kompaktlägets dragyta. **Bara utveckling** och **Fäst överst** visar sina aktuella lägen med bockar.
+Klicka på **Otter-loggan längst till vänster i överraden** eller **⌄** för verktyg och inställningar. Samma meny finns via högerklick på en tom yta eller kompaktlägets dragyta. **Bara utveckling** och **Fäst överst** visar sina aktuella lägen med bockar.
 
-Under **BAKGRUND** finns fem lägen: **Normal** använder Otter Monitors standardbakgrund, **Opaque** är helt solid i vald färg, **Clear** är genomskinlig utan blur, **Blur** suddar bakomliggande innehåll och **Acrylic** använder Windows glasmaterial. Text och knappar behåller full opacitet. **Visa fönsterram** styr den tunna kanten.
+En tunn linje och lite extra luft under överradens knappar skiljer saldon och meny från processlistan.
+
+Otter-loggan har extra utrymme mot OpenAI och en större symbol. Process- och snabbstartsraderna har extra luft upptill. Knappar och ikoner markeras vid hovring, utan extra fokusram eller tryckanimation. Dra var som helst i överraden för att flytta fönstret, även om draget börjar på loggan, ett saldo eller en fönsterknapp. Ett vanligt klick behåller knappens funktion; efter att ett drag har börjat utförs inget knappklick när musen släpps. Textmarkering i sökfältet fungerar som vanligt.
+
+Inställningsfönstret och menyn ärver huvudfönstrets bakgrundsmaterial, färg, transparens och ram. Alla öppna ytor följer ändringarna direkt, även medan färgdialogen förhandsvisar ett nytt val. Avbryt återställer utseendet på samtliga ytor.
+
+Under **⌄ → Inställningar → Utseende → Bakgrund** finns fem lägen: **Normal** använder Otter Monitors standardbakgrund, **Opaque** är helt solid i vald färg, **Clear** är genomskinlig utan blur, **Blur** suddar bakomliggande innehåll och **Acrylic** använder Windows glasmaterial. Text och knappar behåller full opacitet. **Visa fönsterram** styr den tunna kanten.
 
 På Windows 11 22H2 och senare använder Blur samma fungerande DWM-backend för frostat glas som Acrylic. Den klassiska accent-blur-effekten används på äldre Windows-versioner. Den har begränsat stöd i nyare Windows 11, vilket även [TranslucentTB beskriver](https://github.com/TranslucentTB/TranslucentTB#features). DWM-materialet är [Desktop Acrylic](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwm_systembackdrop_type). Byten till Clear eller Opaque rensar den tidigare suddeffekten.
 
@@ -150,7 +188,7 @@ OpenAI-knappen visar Blossom-loggan som vit vektor. Ursprung och varumärkesinfo
 
 Otter Monitor lägger en ikon i systemfältet när appen startar. Ikonen får en **röd prick** när en synlig tjänst rapporterar fel (HTTP 5xx, svarar inte, Docker `unhealthy`) eller när en snabbstart har misslyckats; tipset namnger vad som är fel. Prickarna försvinner av sig själva när felet är borta eller snabbstarten startas igen.
 
-**Notiser** visas som vanliga Windows-notiser via systemfältsikonen och respekterar Fokushjälp. Klick på en notis visar fönstret. De kan stängas av under **⌄ → Notiser**. Otter Monitor meddelar bara förändringar den själv har sett hända medan den körde:
+**Notiser** visas som vanliga Windows-notiser via systemfältsikonen och respekterar Fokushjälp. Klick på en notis visar fönstret. De kan stängas av under **⌄ → Inställningar → Allmänt → Notiser**. Otter Monitor meddelar bara förändringar den själv har sett hända medan den körde:
 
 - **En tjänst slutar svara.** En tjänst som tidigare svarat friskt och sedan rapporterar fel vid två statuskontroller i rad, ungefär 20 sekunder, så att omstarter och HMR-omladdningar inte ger notiser. När den svarar igen kommer en notis om det. Egna stopp och omstarter från Otter Monitor ger inga notiser.
 - **En snabbstart misslyckas.** En körning som sågs igång och sedan avslutades av sig själv med en annan kod än 0. Stopp via Otter Monitor och rena avslut (kod 0, exempelvis `docker compose up -d`) ger ingen notis. En återansluten körning utan känd kod ger notisen ”har avslutats”.
@@ -183,6 +221,12 @@ Projektnavigeringen testas genom egna processer som registrerar mottagna argumen
 .\app\OtterMonitor.exe --preview --empty --output empty.png
 .\app\OtterMonitor.exe --preview --dialog --output dialog.png
 .\app\OtterMonitor.exe --preview --balance-dialog --output balance-dialog.png
+.\app\OtterMonitor.exe --preview --jev-balance-dialog --output jev-balance-dialog.png
+.\app\OtterMonitor.exe --preview --settings-dialog --output settings-dialog.png
+.\app\OtterMonitor.exe --preview --settings-dialog --settings-general --output settings-general.png
+.\app\OtterMonitor.exe --preview --settings-dialog --settings-appearance --output settings-appearance.png
+.\app\OtterMonitor.exe --preview --theme-example --settings-dialog --output themed-settings.png
+.\app\OtterMonitor.exe --preview --theme-example --menu-preview --output themed-menu.png
 .\app\OtterMonitor.exe --preview --group-example --output grouped.png
 .\app\OtterMonitor.exe --preview --status-example --output status.png
 .\app\OtterMonitor.exe --preview --new-dialog --select-first --output new-quick-start.png
@@ -194,6 +238,8 @@ Projektnavigeringen testas genom egna processer som registrerar mottagna argumen
 PNG-förhandsvisningarna visar reservytan, eftersom WPF:s bildrendering inte kan fånga DWM:s bakgrundsoskärpa. Granska verkligt glas utan att påverka dina miljöer med `--preview --compact --group-example --glass --stay-open`. `--material-report material.txt` sparar Windows-version, DWM-materialets och ramritningens återlästa värden, fönstrets aktivering och transparensstatus. Förhandsvisningen använder exempeldata och stängs med krysset.
 
 Saldoläsarens fyra JavaScript-tester körs med Node: `node --test tests/OpenAiBalanceReader/reader.test.cjs`. De kontrollerar beloppsformat, rätt Billing-sida, det exakta saldokortet, varningar med $0 och tvetydiga eller oläsbara fält. Kärntesterna kontrollerar även lokal saldolagring, fel, färskhet och kompatibilitet med äldre inställningar.
+
+JEV-läsarens parser- och ursprungskontroller körs med `node --test tests/JevBalanceReader/reader.test.cjs`. `OtterMonitor.exe --verify-jev-background --test-root <egen testmapp> --report <rapportfil>` testar verklig WebView2-DOM med syntetiska Billing-kort, dolda och tvetydiga fält, nollsaldo, bakgrundsuppdatering, separata kontosessioner, krypterad sessionsåterställning efter fullständig WebView2-omstart och utgången inloggning. Alla externa testförfrågningar blockeras.
 
 ## Struktur
 

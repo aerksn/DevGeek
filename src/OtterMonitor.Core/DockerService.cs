@@ -14,7 +14,7 @@ public sealed class DockerService
         try
         {
             var endpoint = await ResolveLocalEndpointAsync();
-            if (endpoint is null) return new([], 0, "Docker · fjärranslutning hoppas över");
+            if (endpoint is null) return new([], 0, UiText.T("Docker · fjärranslutning hoppas över"));
             var ids = (await RunAsync(["--host", endpoint, "ps", "--quiet", "--no-trunc"], 5)).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
             if (ids.Length == 0) return new([], 0, "Docker · 0 containrar");
             var json = await RunAsync(["--host", endpoint, "container", "inspect", .. ids], 6);
@@ -25,8 +25,8 @@ public sealed class DockerService
             return new(ports, ids.Length, $"Docker · {ids.Length} containrar", resources);
         }
         catch (System.ComponentModel.Win32Exception) { return new([], 0, "Docker · saknas"); }
-        catch (TimeoutException) { return new([], 0, "Docker · svarar inte"); }
-        catch (Exception e) when (e is InvalidOperationException or JsonException or IOException) { return new([], 0, "Docker · inte tillgänglig"); }
+        catch (TimeoutException) { return new([], 0, UiText.T("Docker · svarar inte")); }
+        catch (Exception e) when (e is InvalidOperationException or JsonException or IOException) { return new([], 0, UiText.T("Docker · inte tillgänglig")); }
     }
 
     public static bool IsLocalEndpoint(string endpoint) =>
@@ -117,19 +117,19 @@ public sealed class DockerService
 
     public static async Task StopAsync(PortEntry entry)
     {
-        if (!entry.IsDocker || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException("Ingen lokal Docker-container är vald.");
+        if (!entry.IsDocker || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException(UiText.T("Ingen lokal Docker-container är vald."));
         await RunAsync(["--host", entry.DockerEndpoint, "stop", "--time", "10", entry.ContainerId!], 18);
     }
 
     public static async Task RestartAsync(PortEntry entry)
     {
-        if (!entry.IsDocker || string.IsNullOrWhiteSpace(entry.ContainerId) || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException("Ingen lokal Docker-container är vald.");
+        if (!entry.IsDocker || string.IsNullOrWhiteSpace(entry.ContainerId) || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException(UiText.T("Ingen lokal Docker-container är vald."));
         await RunAsync(["--host", entry.DockerEndpoint, "container", "restart", "--timeout", "10", entry.ContainerId], 30);
     }
 
     public static async Task<string> LogsAsync(PortEntry entry, int tail = 400)
     {
-        if (!entry.IsDocker || string.IsNullOrWhiteSpace(entry.ContainerId) || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException("Ingen lokal Docker-container är vald.");
+        if (!entry.IsDocker || string.IsNullOrWhiteSpace(entry.ContainerId) || entry.DockerEndpoint is null || !IsLocalEndpoint(entry.DockerEndpoint)) throw new InvalidOperationException(UiText.T("Ingen lokal Docker-container är vald."));
         var (output, error) = await RunCoreAsync(["--host", entry.DockerEndpoint, "logs", "--timestamps", "--tail", tail.ToString(CultureInfo.InvariantCulture), entry.ContainerId], 15);
         return MergeLogs(output, error);
     }
@@ -162,7 +162,7 @@ public sealed class DockerService
         var start = new ProcessStartInfo("docker") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         start.Environment.Remove("DOCKER_CONTEXT");
         foreach (var arg in args) start.ArgumentList.Add(arg);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Docker kunde inte startas.");
+        using var process = Process.Start(start) ?? throw new InvalidOperationException(UiText.T("Docker kunde inte startas."));
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
@@ -170,11 +170,11 @@ public sealed class DockerService
         catch (OperationCanceledException)
         {
             try { process.Kill(true); } catch (InvalidOperationException) { }
-            throw new TimeoutException("Docker tog för lång tid på sig. Uppdatera för att se aktuell status.");
+            throw new TimeoutException(UiText.T("Docker tog för lång tid på sig. Uppdatera för att se aktuell status."));
         }
         var result = await output;
         var errorText = await error;
-        if (process.ExitCode != 0) throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ? "Docker-kommandot misslyckades." : errorText.Trim());
+        if (process.ExitCode != 0) throw new InvalidOperationException(string.IsNullOrWhiteSpace(errorText) ? UiText.T("Docker-kommandot misslyckades.") : errorText.Trim());
         return (result, errorText);
     }
 }

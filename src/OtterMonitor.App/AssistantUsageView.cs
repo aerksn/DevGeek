@@ -14,8 +14,8 @@ public sealed record AssistantUsageRow(string Name, string Value, string Hint, s
 public partial class MainWindow
 {
     public ObservableCollection<AssistantUsageRow> AssistantRows { get; } = [];
-    public AssistantUsageRow? CodexUsageRow => AssistantRows.FirstOrDefault(row => row.Name == "Codex");
-    public AssistantUsageRow? ClaudeUsageRow => AssistantRows.FirstOrDefault(row => row.Name == "Claude Code");
+    public AssistantUsageRow? CodexUsageRow => settings.Visibility.Codex ? AssistantRows.FirstOrDefault(row => row.Name == "Codex") : null;
+    public AssistantUsageRow? ClaudeUsageRow => settings.Visibility.Claude ? AssistantRows.FirstOrDefault(row => row.Name == "Claude Code") : null;
     private readonly CodexUsageClient codexUsage = new();
     private UsageSnapshot? codexQuota, claudeQuota;
     private UsageSnapshot? claudeDesktopQuota;
@@ -72,7 +72,7 @@ public partial class MainWindow
         nextCodexRead = DateTimeOffset.UtcNow.AddMinutes(1);
         try { codexQuota = await codexUsage.ReadAsync(executable, telemetryStop.Token); codexUsageError = null; }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or InvalidOperationException or OperationCanceledException or System.ComponentModel.Win32Exception)
-        { codexUsageError = "Kvoten kunde inte uppdateras. Kontrollera inloggningen i Codex. Nytt försök om en minut."; }
+        { codexUsageError = UiText.T("Kvoten kunde inte uppdateras. Kontrollera inloggningen i Codex. Nytt försök om en minut."); }
         finally { usageReading = false; if (!closed) UpdateAssistantRows(); }
     }
 
@@ -80,15 +80,15 @@ public partial class MainWindow
     {
         var rows = new List<AssistantUsageRow>();
         if (assistantActivity.CodexRunning)
-            rows.Add(UsageRow("Codex", codexQuota, codexUsageError ?? (assistantActivity.CodexExecutable is null ? "Codex CLI saknas eller kunde inte hittas. Installera den lokala Codex-klienten." : null), "Läser kvot…"));
+            rows.Add(UsageRow("Codex", codexQuota, codexUsageError ?? (assistantActivity.CodexExecutable is null ? "Codex CLI saknas eller kunde inte hittas. Installera den lokala Codex-klienten." : null), UiText.T("Läser kvot…")));
         if (assistantActivity.ClaudeRunning)
         {
             var row = UsageRow("Claude Code", claudeQuota, assistantActivity.ClaudeDesktopRunning ? claudeDesktopError : null,
-                !claudeConnected ? "Klicka för att koppla" : assistantActivity.ClaudeDesktopRunning ? claudeDesktopState switch
-                { "login_required" => "Logga in", "paused" => "Öppna användning", "unreadable" => "Kan inte läsa kvot", _ => "Läser kvot…" } : "Väntar på svar…",
-                assistantActivity.ClaudeDesktopRunning ? "Claude-appen är öppen. Kvoten läses från kontots användningssida i Otter Monitors egen session ungefär varje minut. Klicka för att logga in eller uppdatera; använd samma konto som i Claude-appen." : null);
+                !claudeConnected ? UiText.T("Klicka för att koppla") : assistantActivity.ClaudeDesktopRunning ? claudeDesktopState switch
+                { "login_required" => UiText.T("Logga in"), "paused" => UiText.T("Öppna användning"), "unreadable" => UiText.T("Kan inte läsa kvot"), _ => UiText.T("Läser kvot…") } : UiText.T("Väntar på svar…"),
+                assistantActivity.ClaudeDesktopRunning ? UiText.T("Claude-appen är öppen. Kvoten läses från kontots användningssida i Otter Monitors egen session ungefär varje minut. Klicka för att logga in eller uppdatera; använd samma konto som i Claude-appen.") : null);
             if (assistantActivity.ClaudeDesktopRunning && claudeQuota is null && claudeConnected && claudeDesktopState == "login_required")
-                row = row with { Value = "Logga in", CompactValue = "Logga in" };
+                row = row with { Value = UiText.T("Logga in"), CompactValue = UiText.T("Logga in") };
             rows.Add(row);
         }
         if (!AssistantRows.SequenceEqual(rows)) { AssistantRows.Clear(); foreach (var row in rows) AssistantRows.Add(row); }
@@ -101,30 +101,31 @@ public partial class MainWindow
         var windows = snapshot?.Windows ?? [];
         var stale = snapshot is not null && now - snapshot.ObservedAt > TimeSpan.FromMinutes(name == "Codex" ? 2 : 5);
         var multipleBuckets = windows.Select(window => window.Name).Distinct().Count() > 1;
-        var value = windows.Count == 0 ? error is null ? snapshot is null ? waiting : "Kvot saknas" : "Kan inte läsa kvot"
-            : string.Join(" · ", windows.Select(window => (multipleBuckets ? window.Name + " " : "") + window.Label(now))) + " kvar";
-        if (windows.Count > 0 && (stale || error is not null)) value += " · äldre";
-        var hint = name + " · abonnemangets kvot, delad över kontot.\n";
-        if (snapshot is not null) hint += "Senast mottaget " + snapshot.ObservedAt.ToLocalTime().ToString("g") + ".\n";
+        var value = windows.Count == 0 ? error is null ? snapshot is null ? waiting : UiText.T("Kvot saknas") : UiText.T("Kan inte läsa kvot")
+            : string.Join(" · ", windows.Select(window => (multipleBuckets ? window.Name + " " : "") + window.Label(now))) + UiText.T(" kvar");
+        if (windows.Count > 0 && (stale || error is not null)) value += UiText.T(" · äldre");
+        var hint = name + UiText.T(" · abonnemangets kvot, delad över kontot.\n");
+        if (snapshot is not null) hint += UiText.T("Senast mottaget ") + snapshot.ObservedAt.ToLocalTime().ToString("g") + ".\n";
         foreach (var window in windows)
-            hint += $"{(multipleBuckets ? window.Name + " · " : "")}{window.Period}: " + (window.ResetsAt <= now ? "återställningstid passerad, väntar på nytt värde"
-                : $"{window.Remaining:0.#}% kvar ({window.UsedPercent:0.#}% använt)")
-                + (window.ResetsAt is { } reset ? $". Återställs {reset.ToLocalTime():ddd d MMM HH:mm}." : ". Återställningstid saknas.") + "\n";
-        hint += source ?? (name == "Codex" ? "Läses ungefär varje minut medan Codex körs. Klicka för att uppdatera."
-            : "Uppdateras via Claude Codes statusrad efter vanliga svar. Saknade kvoter visas inte som noll. Kräver ett konto som lämnar rate_limits. Klicka för kopplingsinformation.");
-        if (stale) hint += "\nÄldre avläsning; kan ha ändrats sedan dess.";
+            hint += $"{(multipleBuckets ? window.Name + " · " : "")}{window.Period}: " + (window.ResetsAt <= now ? UiText.T("återställningstid passerad, väntar på nytt värde")
+                : UiText.F("{0:0.#}% kvar ({1:0.#}% anv\u00E4nt)", window.Remaining, window.UsedPercent))
+                + (window.ResetsAt is { } reset ? UiText.F(". \u00C5terst\u00E4lls {0:ddd d MMM HH:mm}.", reset.ToLocalTime()) : UiText.T(". Återställningstid saknas.")) + "\n";
+        hint += source ?? (name == "Codex" ? UiText.T("Läses ungefär varje minut medan Codex körs. Klicka för att uppdatera.")
+            : UiText.T("Uppdateras via Claude Codes statusrad efter vanliga svar. Saknade kvoter visas inte som noll. Kräver ett konto som lämnar rate_limits. Klicka för kopplingsinformation."));
+        if (stale) hint += UiText.T("\nÄldre avläsning; kan ha ändrats sedan dess.");
         if (error is not null) hint += "\n" + error;
         var valid = windows.Where(window => window.ResetsAt is null || window.ResetsAt > now).ToList();
         return new(name, value, hint.TrimEnd(), stale || error is not null || valid.Count == 0 ? "muted" : valid.Any(w => w.Remaining <= 10) ? "low" : "normal")
         {
             CompactValue = windows.Count == 0 ? value : string.Join(" · ", windows.Select(window => (multipleBuckets ? window.Name + " " : "") + window.Label(now)))
-                + (stale || error is not null ? " · äldre" : "")
+                + (stale || error is not null ? UiText.T(" · äldre") : "")
         };
     }
 
     private void LayoutAssistantUsage()
     {
-        UsageSection.Visibility = AssistantRows.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        var anyVisible = CodexUsageRow is not null || ClaudeUsageRow is not null;
+        UsageSection.Visibility = anyVisible ? Visibility.Visible : Visibility.Collapsed;
         UsageSection.Margin = new Thickness(0);
         CompactUsageBar.Visibility = Visibility.Visible;
         CompactCodexUsage.Visibility = CodexUsageRow is null ? Visibility.Collapsed : Visibility.Visible;
@@ -136,9 +137,9 @@ public partial class MainWindow
         Grid.SetColumnSpan(CompactClaudeUsage, both ? 1 : 3);
         Changed(nameof(CodexUsageRow)); Changed(nameof(ClaudeUsageRow));
         // Recover vertical space from section margins when quota rows are present.
-        var extra = AssistantRows.Count == 0 ? 0 : 28;
-        MinHeight = 166 + extra;
-        DenseScroll.MaxHeight = 308 - extra;
+        var extra = anyVisible ? 28 : 0;
+        MinHeight = 196 + extra;
+        DenseScroll.MaxHeight = 302 - extra;
     }
 
     private async void Usage_Click(object sender, RoutedEventArgs e)
@@ -158,14 +159,14 @@ public partial class MainWindow
                 var previous = settings.ClaudeUsageEnabled; settings.ClaudeUsageEnabled = true;
                 if (!Save()) { settings.ClaudeUsageEnabled = previous; return; }
                 claudeConnected = true; await StartClaudeDesktopUsageAsync();
-                if (claudeBrowser is null) throw new IOException(claudeDesktopError ?? "Claude-sessionen kunde inte öppnas.");
+                if (claudeBrowser is null) throw new IOException(claudeDesktopError ?? UiText.T("Claude-sessionen kunde inte öppnas."));
                 await claudeBrowser.ShowAsync(); UpdateAssistantRows();
             }
             catch (Exception ex) { Error(ex); }
             return;
         }
         if (claudeConnected) { Dialogs.Info(this, "Claude Code", row.Hint); return; }
-        try { ClaudeBridge.Install(); claudeConnected = true; UpdateAssistantRows(); SetStatus("Claude Code är kopplat. Kvoten visas efter nästa vanliga svar."); }
+        try { ClaudeBridge.Install(); claudeConnected = true; UpdateAssistantRows(); SetStatus(UiText.T("Claude Code är kopplat. Kvoten visas efter nästa vanliga svar.")); }
         catch (Exception ex) { Error(ex); }
     }
 
@@ -180,8 +181,8 @@ public partial class MainWindow
                 claudeDesktopState = value.State;
                 if (value.Snapshot is not null) claudeDesktopQuota = value.Snapshot;
                 // Keep an older reading marked as such when the page needs login or cannot be read.
-                claudeDesktopError = value.State is "ok" ? null : value.State == "login_required" ? "Logga in i Claude-sessionen via kvotraden."
-                    : value.State == "paused" ? "Öppna kontots användningssida via kvotraden." : "Claude-kvoten kunde inte läsas. Öppna kvotraden och kontrollera användningssidan.";
+                claudeDesktopError = value.State is "ok" ? null : value.State == "login_required" ? UiText.T("Logga in i Claude-sessionen via kvotraden.")
+                    : value.State == "paused" ? UiText.T("Öppna kontots användningssida via kvotraden.") : UiText.T("Claude-kvoten kunde inte läsas. Öppna kvotraden och kontrollera användningssidan.");
                 if (assistantActivity.ClaudeDesktopRunning) { claudeQuota = claudeDesktopQuota; UpdateAssistantRows(); }
             }, message =>
             {

@@ -8,16 +8,16 @@ public sealed record BalanceMessage(int Schema, string State, string? Amount = n
 {
     public static BalanceMessage Parse(ReadOnlySpan<byte> json)
     {
-        var value = JsonSerializer.Deserialize<BalanceMessage>(json, BalanceStore.JsonOptions) ?? throw new InvalidDataException("Tomt saldomeddelande.");
+        var value = JsonSerializer.Deserialize<BalanceMessage>(json, BalanceStore.JsonOptions) ?? throw new InvalidDataException(UiText.T("Tomt saldomeddelande."));
         if (value.Schema != 1 || value.State is not ("ok" or "unreadable" or "login_required" or "page_closed" or "paused"))
-            throw new InvalidDataException("Okänt saldomeddelande.");
+            throw new InvalidDataException(UiText.T("Okänt saldomeddelande."));
         if (value.State == "ok")
         {
             if (value.Currency != "USD" || value.Amount is null || !Regex.IsMatch(value.Amount, @"^-?\d{1,9}(\.\d{1,2})?$", RegexOptions.CultureInvariant)
                 || !decimal.TryParse(value.Amount, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _))
-                throw new InvalidDataException("Ogiltigt USD-saldo.");
+                throw new InvalidDataException(UiText.T("Ogiltigt USD-saldo."));
         }
-        else if (value.Amount is not null || value.Currency is not null) throw new InvalidDataException("Felstatus får inte innehålla ett nytt saldo.");
+        else if (value.Amount is not null || value.Currency is not null) throw new InvalidDataException(UiText.T("Felstatus får inte innehålla ett nytt saldo."));
         return value;
     }
     [System.Text.Json.Serialization.JsonIgnore]
@@ -28,46 +28,52 @@ public sealed record BalanceSnapshot(decimal? Amount, DateTime? ObservedUtc, Dat
 {
     public bool IsFresh(DateTime now) => State == "ok" && Amount is not null && ObservedUtc is { } observed
         && now >= observed && now - observed <= TimeSpan.FromMinutes(12);
-    public string Label(DateTime now) => Amount is { } amount
-        ? "OpenAI · $" + amount.ToString("0.00", CultureInfo.InvariantCulture) + (IsFresh(now) ? "" : " · äldre")
-        : State == "login_required" ? "OpenAI · logga in" : "OpenAI · väntar";
-    public string Hint(DateTime now)
+    public string Label(DateTime now, string provider = "OpenAI") => Amount is { } amount
+        ? provider + " · $" + amount.ToString("0.00", CultureInfo.InvariantCulture) + (IsFresh(now) ? "" : UiText.T(" · äldre"))
+        : State == "login_required" ? provider + UiText.T(" · logga in")
+        : State == "unreadable" ? provider + UiText.T(" · kan inte läsa")
+        : State is "paused" or "page_closed" ? provider + UiText.T(" · öppna Billing") : provider + UiText.T(" · väntar");
+    public string Hint(DateTime now, string provider = "OpenAI")
     {
-        var latest = ObservedUtc is { } time ? $"Senast avläst {time.ToLocalTime():yyyy-MM-dd HH:mm:ss}.\n" : "Inget saldo har lästs av ännu.\n";
+        var latest = ObservedUtc is { } time ? UiText.F("Senast avl\u00E4st {0:yyyy-MM-dd HH:mm:ss}.\n", time.ToLocalTime()) : UiText.T("Inget saldo har lästs av ännu.\n");
         var state = State switch
         {
-            "login_required" => "Logga in på OpenAI Billing i Otter Monitors eget fönster.",
-            "page_closed" => "Billing-sessionen är stängd. Öppna Billing via OpenAI-loggan igen.",
-            "paused" => "Billing-fliken har lämnat översikten. Öppna översikten igen.",
-            "unreadable" => "Saldofältet kunde inte läsas. Öppna Billing och kontrollera sidan.",
-            _ => IsFresh(now) ? "USD-saldo från fältet API credit balance i Billing." : "Avläsningen är äldre. Öppna Billing för en ny avläsning."
+            "login_required" => UiText.T("Logga in på OpenAI Billing i Otter Monitors eget fönster."),
+            "page_closed" => UiText.T("Billing-sessionen är stängd. Öppna Billing via OpenAI-loggan igen."),
+            "paused" => UiText.T("Billing-fliken har lämnat översikten. Öppna översikten igen."),
+            "unreadable" => UiText.T("Saldofältet kunde inte läsas. Öppna Billing och kontrollera sidan."),
+            _ => IsFresh(now) ? UiText.T("USD-saldo från fältet API credit balance i Billing.") : UiText.T("Avläsningen är äldre. Öppna Billing för en ny avläsning.")
         };
-        return latest + state + "\nKlicka på OpenAI-loggan för koppling och inställningar. Dra i textytan för att flytta fönstret.";
+        var hint = latest + state + UiText.T("\nKlicka på OpenAI-loggan för koppling och inställningar. Dra i textytan för att flytta fönstret.");
+        if (provider == "Anthropic API" && IsFresh(now))
+            return latest + UiText.T("USD-saldo från Claude Consoles kontoöversikt. Totalsaldot i sidhuvudet används när det finns. Kampanjkrediter kan ha begränsningar för modeller och produkter.")
+                + UiText.T("\nKlicka på Anthropic API-knappen för koppling och inställningar.");
+        return provider == "OpenAI" ? hint : hint.Replace(UiText.T("OpenAI-loggan"), provider + UiText.T("-knappen")).Replace("OpenAI Billing", provider + " Billing").Replace("API credit balance", provider == "Anthropic API" ? "Credit balance" : "Available credits");
     }
 }
 
-public sealed class BalanceStore(string directory)
+public sealed class BalanceStore(string directory, bool jev = false, bool anthropic = false)
 {
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     { UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow, MaxDepth = 8 };
-    public string FilePath { get; } = Path.Combine(directory, "openai-balance.json");
+    public string FilePath { get; } = Path.Combine(directory, anthropic ? "anthropic-balance.json" : jev ? "jev-balance.json" : "openai-balance.json");
     public BalanceSnapshot? Read()
     {
         if (!File.Exists(FilePath)) return null;
         using var stream = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (stream.Length > 4096) throw new InvalidDataException("Saldofilen är för stor.");
-        var value = JsonSerializer.Deserialize<BalanceSnapshot>(stream, JsonOptions) ?? throw new InvalidDataException("Saldofilen är tom.");
+        if (stream.Length > 4096) throw new InvalidDataException(UiText.T("Saldofilen är för stor."));
+        var value = JsonSerializer.Deserialize<BalanceSnapshot>(stream, JsonOptions) ?? throw new InvalidDataException(UiText.T("Saldofilen är tom."));
         if (value.State is not ("ok" or "unreadable" or "login_required" or "page_closed" or "paused")
             || value.CheckedUtc.Kind != DateTimeKind.Utc || value.ObservedUtc is { Kind: not DateTimeKind.Utc }
             || value.Amount is not null && value.ObservedUtc is null || value.State == "ok" && value.Amount is null
             || value.Amount is { } amount && (Math.Abs(amount) >= 1_000_000_000 || decimal.Round(amount, 2) != amount)
             || value.ObservedUtc > value.CheckedUtc || value.CheckedUtc == DateTime.MinValue)
-            throw new InvalidDataException("Ogiltig saldofil.");
+            throw new InvalidDataException(UiText.T("Ogiltig saldofil."));
         return value;
     }
     public BalanceSnapshot Apply(BalanceMessage message, DateTime now)
     {
-        if (now.Kind != DateTimeKind.Utc) throw new InvalidDataException("Avläsningstiden måste vara UTC.");
+        if (now.Kind != DateTimeKind.Utc) throw new InvalidDataException(UiText.T("Avläsningstiden måste vara UTC."));
         // Validate both DOM observations and direct store writes.
         message = BalanceMessage.Parse(JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions));
         var old = Read();

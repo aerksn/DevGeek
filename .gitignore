@@ -16,6 +16,8 @@ test-results/
 settings.json
 settings.json.bak
 openai-balance.json
+jev-balance.json
+anthropic-balance.json
 browser-bridge/
 *-session.bin
 *-usage.json

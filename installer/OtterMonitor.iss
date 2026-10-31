@@ -4,6 +4,9 @@
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
+#ifndef AppSourceDir
+  #define AppSourceDir "..\app"
+#endif
 
 [Setup]
 ; Never change AppId: it is how updates and the uninstaller find an existing installation.
@@ -50,7 +53,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "autostart"; Description: "{cm:AutoStart}"; Flags: unchecked
 
 [Files]
-Source: "..\app\OtterMonitor.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppSourceDir}\OtterMonitor.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppSourceDir}\BricolageGrotesque-OFL.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Otter Monitor"; Filename: "{app}\OtterMonitor.exe"; Comment: "Lokala utvecklingsportar och snabbstarter"

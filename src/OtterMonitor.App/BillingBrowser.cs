@@ -17,13 +17,18 @@ namespace OtterMonitor.App;
 public sealed partial class BillingBrowser : IDisposable
 {
     private readonly Window window;
-    private readonly TextBlock address = new(), status = new() { Text = "Förbereder Billing…", FontSize = 11 };
+    private readonly TextBlock address = new(), status = new() { Text = UiText.T("Förbereder Billing…"), FontSize = 11 };
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromMinutes(5) };
     private readonly DispatcherTimer observeTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private readonly string directory;
     private readonly Func<BalanceMessage, bool> receive;
     private readonly Action<string?> error;
     private readonly bool fixture;
+    private readonly bool jev;
+    private readonly bool anthropic;
+    private string OverviewUrl => anthropic ? AnthropicBillingNavigation.OverviewUrl : jev ? JevBillingNavigation.OverviewUrl : BillingNavigation.OverviewUrl;
+    private bool IsOverview(string url) => anthropic ? AnthropicBillingNavigation.IsOverview(url) : jev ? JevBillingNavigation.IsOverview(url) : BillingNavigation.IsOverview(url);
+    private string StateFor(string url) => anthropic ? AnthropicBillingNavigation.StateFor(url) : jev ? JevBillingNavigation.StateFor(url) : BillingNavigation.StateFor(url);
     private readonly bool rememberSession;
     private readonly BillingSessionStore sessionStore;
     private CoreWebView2Controller? controller;
@@ -34,25 +39,28 @@ public sealed partial class BillingBrowser : IDisposable
     private readonly string reader;
     private DateTime navigationStarted;
     private string fixtureHtml = "";
+    private Func<string, string>? fixtureResponse;
+    private readonly List<BillingAuthPopup> authPopups = [];
     private bool authenticated;
     private DateTime sessionSaved;
     private Task? sessionCapture;
     private string? sessionError;
 
-    public BillingBrowser(string directory, Func<BalanceMessage, bool> receive, Action<string?> error) : this(directory, receive, error, false) { }
-    private BillingBrowser(string directory, Func<BalanceMessage, bool> receive, Action<string?> error, bool fixture, bool rememberSession = true)
+    public BillingBrowser(string directory, Func<BalanceMessage, bool> receive, Action<string?> error, bool jev = false, bool anthropic = false) : this(directory, receive, error, false, true, jev, anthropic) { }
+    private BillingBrowser(string directory, Func<BalanceMessage, bool> receive, Action<string?> error, bool fixture, bool rememberSession = true, bool jev = false, bool anthropic = false)
     {
-        this.directory = directory; this.receive = receive; this.error = error; this.fixture = fixture;
-        this.rememberSession = rememberSession; sessionStore = new(directory);
-        using var resource = typeof(BillingBrowser).Assembly.GetManifestResourceStream("OtterMonitor.BalanceReader.js") ?? throw new IOException("Saldoläsaren saknas.");
+        this.directory = directory; this.receive = receive; this.fixture = fixture; this.jev = jev; this.anthropic = anthropic;
+        this.error = message => error(message is null ? null : message.Replace(UiText.T("OpenAI-loggan"), anthropic ? UiText.T("Anthropic-knappen") : jev ? UiText.T("JEV-knappen") : UiText.T("OpenAI-loggan")));
+        this.rememberSession = rememberSession; sessionStore = new(directory, jev: jev, anthropic: anthropic);
+        using var resource = typeof(BillingBrowser).Assembly.GetManifestResourceStream(anthropic ? "OtterMonitor.AnthropicBalanceReader.js" : jev ? "OtterMonitor.JevBalanceReader.js" : "OtterMonitor.BalanceReader.js") ?? throw new IOException(UiText.T("Saldoläsaren saknas."));
         using var text = new StreamReader(resource); reader = text.ReadToEnd();
-        window = new Window { Title = "Otter Monitor · OpenAI Billing", Width = 1040, Height = 780, MinWidth = 760, MinHeight = 500, ShowInTaskbar = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
+        window = new Window { Title = anthropic ? "Otter Monitor · Anthropic API Billing" : jev ? "Otter Monitor · JEV Billing" : "Otter Monitor · OpenAI Billing", Width = 1040, Height = 780, MinWidth = 760, MinHeight = 500, ShowInTaskbar = true, WindowStartupLocation = WindowStartupLocation.CenterScreen };
         var layout = new DockPanel();
         var top = new DockPanel { Height = 48, Margin = new Thickness(10, 0, 10, 0), LastChildFill = true };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        Add("Till Billing", () => controller?.CoreWebView2.Navigate(BillingNavigation.OverviewUrl));
-        Add("Uppdatera saldo", () => { _ = RefreshAsync(manual: true); });
-        Add("Dölj", () => window.Hide());
+        Add(UiText.T("Till Billing"), () => controller?.CoreWebView2.Navigate(OverviewUrl));
+        Add(UiText.T("Uppdatera saldo"), () => { _ = RefreshAsync(manual: true); });
+        Add(UiText.T("Dölj"), () => window.Hide());
         DockPanel.SetDock(buttons, Dock.Right); top.Children.Add(buttons);
         address.FontSize = 11; address.VerticalAlignment = VerticalAlignment.Center; address.TextTrimming = TextTrimming.CharacterEllipsis;
         top.Children.Add(address); DockPanel.SetDock(top, Dock.Top); layout.Children.Add(top);
@@ -78,21 +86,19 @@ public sealed partial class BillingBrowser : IDisposable
         try
         {
             _ = CoreWebView2Environment.GetAvailableBrowserVersionString();
-            var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: Path.Combine(directory, "billing-profile"));
+            var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: Path.Combine(directory, anthropic ? "anthropic-profile" : jev ? "jev-profile" : "billing-profile"));
             if (disposed) return;
             var handle = new WindowInteropHelper(window).EnsureHandle();
             var options = environment.CreateCoreWebView2ControllerOptions();
             options.ProfileName = "Default"; options.IsInPrivateModeEnabled = false;
             var created = await environment.CreateCoreWebView2ControllerAsync(handle, options);
             if (disposed) { created.Close(); return; }
-            controller = created; controller.IsVisible = false; Resize();
+            controller = created;
+            // Claude Console gates account data on document visibility. Keep its renderer
+            // active inside the hidden native host; the Billing window itself remains hidden.
+            controller.IsVisible = anthropic; Resize();
             var core = controller.CoreWebView2;
-            if (fixture)
-            {
-                // Serve only our own test HTML; no request to an account or website is made by this test.
-                core.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
-                core.WebResourceRequested += (_, args) => args.Response = environment.CreateWebResourceResponse(new MemoryStream(Encoding.UTF8.GetBytes(fixtureHtml)), 200, "OK", "Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store");
-            }
+            ConfigureFixture(core, environment);
             core.Settings.IsPasswordAutosaveEnabled = false;
             core.Settings.IsGeneralAutofillEnabled = false;
             core.Settings.IsWebMessageEnabled = false;
@@ -100,7 +106,7 @@ public sealed partial class BillingBrowser : IDisposable
             {
                 try { await sessionStore.RestoreAsync(core.CookieManager, () => !disposed); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or JsonException or COMException or TimeoutException)
-                { sessionError = "Den sparade inloggningen kunde inte återställas. Logga in igen via OpenAI-loggan."; }
+                { sessionError = UiText.T("Den sparade inloggningen kunde inte återställas. Logga in igen via OpenAI-loggan."); }
                 if (disposed) return;
             }
             core.NavigationStarting += (_, args) =>
@@ -108,9 +114,9 @@ public sealed partial class BillingBrowser : IDisposable
                 if (disposed) { args.Cancel = true; return; }
                 if (!fixture && (!Uri.TryCreate(args.Uri, UriKind.Absolute, out var uri) || uri.Scheme != "https")) { args.Cancel = true; return; }
                 generation++; navigating = true; navigationStarted = DateTime.UtcNow; previous = "";
-                if (!BillingNavigation.IsOverview(args.Uri))
+                if (!IsOverview(args.Uri))
                 {
-                    var state = BillingNavigation.StateFor(args.Uri);
+                    var state = StateFor(args.Uri);
                     if (state == "login_required") ForgetSavedSession();
                     Emit(new(1, state));
                 }
@@ -120,29 +126,77 @@ public sealed partial class BillingBrowser : IDisposable
             {
                 if (disposed) return;
                 navigating = false;
-                if (!args.IsSuccess) { Emit(new(1, "unreadable")); error("Billing kunde inte laddas. Öppna Billing via OpenAI-loggan och försök igen."); return; }
-                if (!fixture && BillingNavigation.IsPlatformHome(core.Source)) { core.Navigate(BillingNavigation.OverviewUrl); return; }
+                if (!args.IsSuccess) { Emit(new(1, "unreadable")); error(UiText.T("Billing kunde inte laddas. Öppna Billing via OpenAI-loggan och försök igen.")); return; }
+                if (!fixture && (anthropic ? AnthropicBillingNavigation.IsHome(core.Source) : jev ? JevBillingNavigation.IsHome(core.Source) : BillingNavigation.IsPlatformHome(core.Source))) { core.Navigate(OverviewUrl); return; }
                 await ObserveAsync();
             };
-            core.NewWindowRequested += (_, args) =>
+            core.SourceChanged += async (_, args) =>
             {
+                if (disposed) return;
+                UpdateAddress(core.Source);
+                if (anthropic && !args.IsNewDocument && !navigating)
+                {
+                    if (!fixture && AnthropicBillingNavigation.IsHome(core.Source)) core.Navigate(OverviewUrl);
+                    else await ObserveAsync();
+                }
+            };
+            core.NewWindowRequested += async (_, args) =>
+            {
+                if (anthropic) { await OpenAuthPopupAsync(environment, args, window); return; }
                 args.Handled = true;
                 if (window.IsVisible && args.IsUserInitiated && Uri.TryCreate(args.Uri, UriKind.Absolute, out var uri) && uri.Scheme == "https") core.Navigate(args.Uri);
             };
             core.PermissionRequested += (_, args) => args.State = CoreWebView2PermissionState.Deny;
             core.DownloadStarting += (_, args) => args.Cancel = true;
-            core.ProcessFailed += (_, _) => { if (!disposed) { Emit(new(1, "unreadable")); error("Billing-sessionen avbröts. Koppla från och anslut igen via OpenAI-loggan."); } };
+            core.ProcessFailed += (_, _) => { if (!disposed) { Emit(new(1, "unreadable")); error(UiText.T("Billing-sessionen avbröts. Koppla från och anslut igen via OpenAI-loggan.")); } };
             if (!fixture)
             {
-                core.Navigate(BillingNavigation.OverviewUrl);
+                core.Navigate(OverviewUrl);
                 refreshTimer.Start(); observeTimer.Start();
             }
             error(sessionError);
         }
         catch (Exception ex)
         {
-            error("Bakgrundsläsaren kunde inte startas. Kontrollera att Microsoft Edge WebView2 Runtime är installerad. " + ex.Message);
+            error(UiText.T("Bakgrundsläsaren kunde inte startas. Kontrollera att Microsoft Edge WebView2 Runtime är installerad. ") + ex.Message);
             throw;
+        }
+    }
+
+    private void ConfigureFixture(CoreWebView2 core, CoreWebView2Environment environment)
+    {
+        if (!fixture) return;
+        // Every request in the opener and its popups is served locally in tests.
+        core.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
+        core.WebResourceRequested += (_, args) => args.Response = environment.CreateWebResourceResponse(
+            new MemoryStream(Encoding.UTF8.GetBytes(fixtureResponse?.Invoke(args.Request.Uri) ?? fixtureHtml)), 200, "OK", "Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store");
+    }
+    private async Task OpenAuthPopupAsync(CoreWebView2Environment environment, CoreWebView2NewWindowRequestedEventArgs args, Window opener)
+    {
+        args.Handled = true;
+        if (disposed || !fixture && (!opener.IsVisible || !args.IsUserInitiated) || !BillingAuthPopup.Allowed(args.Uri) || authPopups.Count >= 3) return;
+        var deferral = args.GetDeferral();
+        var popup = new BillingAuthPopup(opener, closed => authPopups.Remove(closed));
+        authPopups.Add(popup);
+        try
+        {
+            await popup.InitializeAsync(environment, core => ConfigureFixture(core, environment),
+                async (nested, owner) => await OpenAuthPopupAsync(environment, nested, owner));
+            if (disposed || popup.IsDisposed) { popup.Dispose(); return; }
+            // Supply the new WebView before completing the request. Never navigate the opener to the popup URI.
+            args.NewWindow = popup.Core;
+            popup.Show(fixture);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or IOException)
+        {
+            popup.Dispose();
+            if (!disposed) error(UiText.T("Inloggningsfönstret kunde inte öppnas. Försök igen från Billing."));
+        }
+        finally
+        {
+            // Dispose completes this SDK deferral. Calling Complete as well completes it twice.
+            try { deferral.Dispose(); }
+            catch (COMException) { popup.Dispose(); }
         }
     }
 
@@ -156,31 +210,35 @@ public sealed partial class BillingBrowser : IDisposable
         if (disposed || controller is null) return;
         var core = controller.CoreWebView2;
         var busy = navigating && DateTime.UtcNow - navigationStarted < TimeSpan.FromSeconds(60);
-        if (busy || !manual && !BillingNavigation.CanAutoRefresh(core.Source, window.IsVisible, window.WindowState == WindowState.Minimized, busy)) return;
+        if (busy || !manual && !(anthropic ? AnthropicBillingNavigation.CanAutoRefresh(core.Source, window.IsVisible, window.WindowState == WindowState.Minimized, busy)
+            : jev ? JevBillingNavigation.CanAutoRefresh(core.Source, window.IsVisible, window.WindowState == WindowState.Minimized, busy)
+            : BillingNavigation.CanAutoRefresh(core.Source, window.IsVisible, window.WindowState == WindowState.Minimized, busy))) return;
         try
         {
-            if (BillingNavigation.IsOverview(core.Source))
+            if (IsOverview(core.Source))
             {
                 if (!manual)
                 {
                     var currentGeneration = generation;
-                    var safe = await core.ExecuteScriptAsync("!document.activeElement?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('[role=dialog],dialog[open]')").WaitAsync(TimeSpan.FromSeconds(15));
+                    var refreshCheck = jev ? "(() => { const module = { exports: {} }; " + reader + "; return module.exports.canRefresh(document); })()"
+                        : "!document.activeElement?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('[role=dialog],dialog[open]')";
+                    var safe = await core.ExecuteScriptAsync(refreshCheck).WaitAsync(TimeSpan.FromSeconds(15));
                     if (safe != "true" || disposed || generation != currentGeneration) return;
                 }
                 core.Reload();
             }
-            else if (manual) core.Navigate(BillingNavigation.OverviewUrl);
+            else if (manual) core.Navigate(OverviewUrl);
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or TimeoutException)
-        { if (!disposed) { Emit(new(1, "unreadable")); error("Billing kunde inte uppdateras. Öppna sessionen via OpenAI-loggan och försök igen."); } }
+        { if (!disposed) { Emit(new(1, "unreadable")); error(UiText.T("Billing kunde inte uppdateras. Öppna sessionen via OpenAI-loggan och försök igen.")); } }
     }
     private async Task ObserveAsync()
     {
         if (disposed || reading || navigating || controller is null) return;
         var core = controller.CoreWebView2;
-        if (!BillingNavigation.IsOverview(core.Source))
+        if (!IsOverview(core.Source))
         {
-            var state = BillingNavigation.StateFor(core.Source);
+            var state = StateFor(core.Source);
             if (state == "login_required") ForgetSavedSession();
             Emit(new(1, state)); return;
         }
@@ -199,7 +257,7 @@ public sealed partial class BillingBrowser : IDisposable
             if (Emit(message)) error(sessionError);
         }
         catch (Exception ex) when (ex is InvalidOperationException or JsonException or IOException or COMException or TimeoutException)
-        { if (!disposed && generation == currentGeneration) { Emit(new(1, "unreadable")); error("Saldot kunde inte läsas. Öppna Billing via OpenAI-loggan och kontrollera inloggningen."); } }
+        { if (!disposed && generation == currentGeneration) { Emit(new(1, "unreadable")); error(UiText.T("Saldot kunde inte läsas. Öppna Billing via OpenAI-loggan och kontrollera inloggningen.")); } }
         finally { reading = false; }
     }
     private bool Emit(BalanceMessage message)
@@ -207,14 +265,14 @@ public sealed partial class BillingBrowser : IDisposable
         if (disposed) return false;
         var fingerprint = JsonSerializer.Serialize(message, BalanceStore.JsonOptions);
         if (fingerprint == previous) return true; // Merely reading the same DOM must not renew its timestamp.
-        if (!receive(message)) { status.Text = "Avläsningen kunde inte sparas. Otter Monitor försöker igen."; return false; }
+        if (!receive(message)) { status.Text = UiText.T("Avläsningen kunde inte sparas. Otter Monitor försöker igen."); return false; }
         previous = fingerprint;
         status.Text = message.State switch
         {
-            "ok" => $"Saldo avläst {DateTime.Now:HH:mm:ss}. Dölj fönstret för avläsning i bakgrunden var femte minut.",
-            "login_required" => "Logga in här. Sessionen sparas krypterat för nästa appstart när saldot har lästs.",
-            "paused" => "Välj Till Billing för att återgå till saldoöversikten.",
-            _ => "Saldofältet kunde inte läsas. Kontrollera Billing eller vänta tills sidan har laddats."
+            "ok" => UiText.F("Saldo avl\u00E4st {0:HH:mm:ss}. D\u00F6lj f\u00F6nstret f\u00F6r avl\u00E4sning i bakgrunden var femte minut.", DateTime.Now),
+            "login_required" => UiText.T("Logga in här. Sessionen sparas krypterat för nästa appstart när saldot har lästs."),
+            "paused" => UiText.T("Välj Till Billing för att återgå till saldoöversikten."),
+            _ => UiText.T("Saldofältet kunde inte läsas. Kontrollera Billing eller vänta tills sidan har laddats.")
         };
         return true;
     }
@@ -231,6 +289,11 @@ public sealed partial class BillingBrowser : IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { sessionError = "Den sparade sessionen kunde inte raderas. Kontrollera Otter Monitors datamapp."; }
     }
+    public void DisconnectAccount()
+    {
+        controller?.CoreWebView2.CookieManager.DeleteAllCookies();
+        ForgetSavedSession();
+    }
     public async Task FlushSessionAsync()
     {
         if (sessionCapture is { IsCompleted: false }) await sessionCapture;
@@ -239,7 +302,7 @@ public sealed partial class BillingBrowser : IDisposable
     private Task CaptureSessionAsync(bool force)
     {
         if (sessionCapture is { IsCompleted: false }) return sessionCapture;
-        if (!rememberSession || disposed || controller is null || !authenticated || navigating || !BillingNavigation.IsOverview(controller.CoreWebView2.Source)
+        if (!rememberSession || disposed || controller is null || !authenticated || navigating || !IsOverview(controller.CoreWebView2.Source)
             || !force && DateTime.UtcNow - sessionSaved < TimeSpan.FromMinutes(1)) return Task.CompletedTask;
         return sessionCapture = SaveAsync();
         async Task SaveAsync()
@@ -247,12 +310,12 @@ public sealed partial class BillingBrowser : IDisposable
             var currentGeneration = generation;
             try
             {
-                var cookies = await BillingSessionStore.GetOwnCookiesAsync(controller!.CoreWebView2.CookieManager).WaitAsync(TimeSpan.FromSeconds(3));
+                var cookies = await sessionStore.GetCookiesAsync(controller!.CoreWebView2.CookieManager).WaitAsync(TimeSpan.FromSeconds(3));
                 if (disposed || !authenticated || currentGeneration != generation) return;
                 sessionStore.Save(cookies, DateTime.UtcNow); sessionSaved = DateTime.UtcNow; sessionError = null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or JsonException or COMException or TimeoutException)
-            { if (!disposed) sessionError = "Inloggningen kunde inte sparas för nästa appstart. Kontrollera Otter Monitors datamapp."; }
+            { if (!disposed) sessionError = UiText.T("Inloggningen kunde inte sparas för nästa appstart. Kontrollera Otter Monitors datamapp."); }
         }
     }
     private void HideOnClose(object? sender, CancelEventArgs args)
@@ -262,7 +325,9 @@ public sealed partial class BillingBrowser : IDisposable
     }
     private void UpdateVisibility()
     {
-        if (controller is not null) controller.IsVisible = window.IsVisible && window.WindowState != WindowState.Minimized;
+        var visible = window.IsVisible && window.WindowState != WindowState.Minimized;
+        if (controller is not null) controller.IsVisible = anthropic || visible;
+        if (!visible) foreach (var popup in authPopups.ToArray()) popup.Dispose();
     }
     private void Resize()
     {
@@ -270,11 +335,16 @@ public sealed partial class BillingBrowser : IDisposable
         if (!GetClientRect(new WindowInteropHelper(window).Handle, out var rect)) return;
         var scale = System.Windows.Media.VisualTreeHelper.GetDpi(window).DpiScaleY;
         var top = (int)Math.Round(48 * scale); var bottom = (int)Math.Round(28 * scale);
-        controller.Bounds = new System.Drawing.Rectangle(0, top, Math.Max(1, rect.Right), Math.Max(1, rect.Bottom - top - bottom));
+        // EnsureHandle may create a zero-sized HWND before WPF has ever shown the window.
+        // Keep a real desktop viewport for the site's responsive layout during background reads.
+        var width = rect.Right > 64 ? rect.Right : (int)Math.Round(window.Width * scale);
+        var height = rect.Bottom > top + bottom + 64 ? rect.Bottom : (int)Math.Round(window.Height * scale);
+        controller.Bounds = new System.Drawing.Rectangle(0, top, Math.Max(1, width), Math.Max(1, height - top - bottom));
     }
     public void Dispose()
     {
         if (disposed) return; disposed = true; refreshTimer.Stop(); observeTimer.Stop();
+        foreach (var popup in authPopups.ToArray()) popup.Dispose();
         controller?.Close(); controller = null; window.Close();
     }
 

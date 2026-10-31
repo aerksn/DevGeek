@@ -8,7 +8,7 @@ namespace OtterMonitor.Core;
 public enum ServiceTone { Neutral, Good, Warning, Bad }
 public sealed record ProbeReading(string Label, ServiceTone Tone, double? Milliseconds, string Hint, DateTime SampledUtc, IReadOnlyList<Uri>? WebUrls = null)
 {
-    public static ProbeReading Waiting => new("Väntar", ServiceTone.Neutral, null, "Kontrollerar tjänstens lokala portar…", DateTime.UtcNow);
+    public static ProbeReading Waiting => new(UiText.T("Väntar"), ServiceTone.Neutral, null, UiText.T("Kontrollerar tjänstens lokala portar…"), DateTime.UtcNow);
     public string Text => Milliseconds is { } ms ? Label + " · " + (ms < 1 ? "<1" : Math.Round(ms).ToString()) + " ms" : Label;
 }
 
@@ -40,9 +40,9 @@ public sealed class ServiceProbe : IDisposable
         if (tcp.Count == 0)
         {
             var udpHealth = entries.FirstOrDefault()?.ContainerHealth;
-            return new(udpHealth switch { "unhealthy" => "Ej frisk", "starting" => "Startar", "paused" => "Pausad", "healthy" => "Frisk · UDP", _ => "UDP" },
+            return new(udpHealth switch { "unhealthy" => UiText.T("Ej frisk"), "starting" => UiText.T("Startar"), "paused" => UiText.T("Pausad"), "healthy" => UiText.T("Frisk · UDP"), _ => "UDP" },
                 udpHealth switch { "unhealthy" => ServiceTone.Bad, "starting" or "paused" => ServiceTone.Warning, "healthy" => ServiceTone.Good, _ => ServiceTone.Neutral },
-                null, "UDP-port visas. Ingen TCP- eller HTTP-svarstid kan mätas för den." + (udpHealth is null ? "" : "\nDocker health: " + udpHealth), DateTime.UtcNow);
+                null, UiText.T("UDP-port visas. Ingen TCP- eller HTTP-svarstid kan mätas för den.") + (udpHealth is null ? "" : "\nDocker health: " + udpHealth), DateTime.UtcNow);
         }
         var results = await Task.WhenAll(tcp.Select(async bindings =>
         {
@@ -64,8 +64,8 @@ public sealed class ServiceProbe : IDisposable
         var reached = results.Count(result => result.Reachable == true);
         var latency = results.Where(result => result.Reachable == true).Select(result => result.Milliseconds).Max();
         string label; ServiceTone tone;
-        if (results.All(result => result.Reachable is null)) { label = "Ej kontrollerad"; tone = ServiceTone.Neutral; }
-        else if (reached != results.Length) { label = reached == 0 ? "Svarar inte" : $"{reached}/{results.Length} svarar"; tone = reached == 0 ? ServiceTone.Bad : ServiceTone.Warning; }
+        if (results.All(result => result.Reachable is null)) { label = UiText.T("Ej kontrollerad"); tone = ServiceTone.Neutral; }
+        else if (reached != results.Length) { label = reached == 0 ? UiText.T("Svarar inte") : UiText.F("{0}/{1} svarar", reached, results.Length); tone = reached == 0 ? ServiceTone.Bad : ServiceTone.Warning; }
         else
         {
             var code = results.Where(result => result.HttpCode is not null).Select(result => result.HttpCode).Max();
@@ -75,17 +75,17 @@ public sealed class ServiceProbe : IDisposable
         var health = entries[0].ContainerHealth;
         if (health is "unhealthy" or "starting" or "paused")
         {
-            label = health switch { "unhealthy" => "Ej frisk", "paused" => "Pausad", _ => "Startar" };
+            label = health switch { "unhealthy" => UiText.T("Ej frisk"), "paused" => UiText.T("Pausad"), _ => UiText.T("Startar") };
             tone = health == "unhealthy" ? ServiceTone.Bad : ServiceTone.Warning;
         }
         if (health is not null) hint += "\nDocker health: " + health;
-        return new(label, tone, latency, hint + "\nSvarstiden är den långsammaste kontrollerade porten. HTTP mäts till svarshuvuden; TCP mäter anslutningen.", DateTime.UtcNow,
+        return new(label, tone, latency, hint + UiText.T("\nSvarstiden är den långsammaste kontrollerade porten. HTTP mäts till svarshuvuden; TCP mäter anslutningen."), DateTime.UtcNow,
             results.Where(result => result.WebUrl is not null).Select(result => result.WebUrl!).ToArray());
     }
     private async Task<Result> CheckAsync(PortEntry entry, CancellationToken cancellationToken)
     {
         var ip = LocalAddress(entry.Address);
-        if (ip is null) return new(entry.Port, null, null, null, "Bindningen är inte en lokal IP-adress.");
+        if (ip is null) return new(entry.Port, null, null, null, UiText.T("Bindningen är inte en lokal IP-adress."));
         var watch = Stopwatch.StartNew();
         try
         {
@@ -94,9 +94,9 @@ public sealed class ServiceProbe : IDisposable
             await client.ConnectAsync(ip, entry.Port, timeout.Token);
         }
         catch (Exception ex) when (ex is SocketException or OperationCanceledException or ArgumentOutOfRangeException)
-        { cancellationToken.ThrowIfCancellationRequested(); return new(entry.Port, false, null, null, "TCP-anslutningen misslyckades eller fick timeout."); }
+        { cancellationToken.ThrowIfCancellationRequested(); return new(entry.Port, false, null, null, UiText.T("TCP-anslutningen misslyckades eller fick timeout.")); }
         var tcpTime = watch.Elapsed.TotalMilliseconds;
-        if (!IsHttpCandidate(entry)) return new(entry.Port, true, null, tcpTime, "TCP ansluten. Detta verifierar porten, inte applikationens hälsa.");
+        if (!IsHttpCandidate(entry)) return new(entry.Port, true, null, tcpTime, UiText.T("TCP ansluten. Detta verifierar porten, inte applikationens hälsa."));
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(1100);
@@ -110,12 +110,12 @@ public sealed class ServiceProbe : IDisposable
                 using var get = new HttpRequestMessage(HttpMethod.Get, uri);
                 watch.Restart();
                 using var fallback = await http.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-                return new(entry.Port, true, (int)fallback.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)fallback.StatusCode} från {uri}. Ingen omdirigering följs.", uri);
+                return new(entry.Port, true, (int)fallback.StatusCode, watch.Elapsed.TotalMilliseconds, UiText.F("HTTP {0} fr\u00E5n {1}. Ingen omdirigering f\u00F6ljs.", (int)fallback.StatusCode, uri), uri);
             }
-            return new(entry.Port, true, (int)response.StatusCode, watch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode} från {uri}. Ingen omdirigering följs.", uri);
+            return new(entry.Port, true, (int)response.StatusCode, watch.Elapsed.TotalMilliseconds, UiText.F("HTTP {0} fr\u00E5n {1}. Ingen omdirigering f\u00F6ljs.", (int)response.StatusCode, uri), uri);
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or ObjectDisposedException)
-        { cancellationToken.ThrowIfCancellationRequested(); return new(entry.Port, true, null, tcpTime, "TCP ansluten; inget verifierat HTTP-svar. HTTPS-certifikat kringgås inte."); }
+        { cancellationToken.ThrowIfCancellationRequested(); return new(entry.Port, true, null, tcpTime, UiText.T("TCP ansluten; inget verifierat HTTP-svar. HTTPS-certifikat kringgås inte.")); }
     }
     public void Dispose() => http.Dispose();
 }

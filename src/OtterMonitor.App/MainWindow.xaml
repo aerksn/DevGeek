@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window x:Class="OtterMonitor.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:core="clr-namespace:OtterMonitor.Core;assembly=OtterMonitor.Core" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework" Title="Otter Monitor" Width="360" Height="166" MinWidth="300" MinHeight="166" MaxHeight="342" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True" Style="{StaticResource {x:Type Window}}" PreviewTextInput="Window_PreviewTextInput" PreviewKeyDown="Window_PreviewKeyDown">
+<Window x:Class="OtterMonitor.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:local="clr-namespace:OtterMonitor.App" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:core="clr-namespace:OtterMonitor.Core;assembly=OtterMonitor.Core" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework" Title="Otter Monitor" Width="360" Height="196" MinWidth="300" MinHeight="196" MaxHeight="342" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True" Style="{StaticResource {x:Type Window}}" PreviewTextInput="Window_PreviewTextInput" PreviewKeyDown="Window_PreviewKeyDown">
   <Window.Resources>
+    <ControlTemplate x:Key="ThemedMenuItemsTemplate" TargetType="Menu"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" /></ControlTemplate>
+    <ItemsPanelTemplate x:Key="VerticalMenuItems"><StackPanel /></ItemsPanelTemplate>
     <Geometry x:Key="OpenAiBlossom">F1 M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z</Geometry>
     <ControlTemplate x:Key="AppearanceMenuTemplate" TargetType="ContextMenu"><Border Background="#FA292738" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Padding="5"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" /></Border></ControlTemplate>
     <Style x:Key="AppearanceMenuItem" TargetType="MenuItem">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
       <Setter Property="Padding" Value="8,7" /><Setter Property="Foreground" Value="{StaticResource TextBrush}" />
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
         <Border x:Name="MenuBody" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
@@ -16,8 +19,8 @@
     </Style>
     <DataTemplate x:Key="CompactUsageTemplate">
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions>
-        <TextBlock Text="{Binding Name}" FontSize="9" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <TextBlock Grid.Column="1" Text="{Binding CompactValue}" FontSize="9" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Name}" FontSize="10" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <TextBlock Grid.Column="1" Text="{Binding CompactValue}" FontSize="10" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" VerticalAlignment="Center">
           <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
             <Style.Triggers><DataTrigger Binding="{Binding Tone}" Value="low"><Setter Property="Foreground" Value="{StaticResource RoseBrush}" /></DataTrigger><DataTrigger Binding="{Binding Tone}" Value="muted"><Setter Property="Foreground" Value="{StaticResource MutedBrush}" /></DataTrigger></Style.Triggers>
           </Style></TextBlock.Style>
@@ -25,7 +28,7 @@
       </Grid>
     </DataTemplate>
     <Style x:Key="DenseStopButton" TargetType="Button" BasedOn="{StaticResource StopButton}">
-      <Setter Property="Width" Value="36" /><Setter Property="Height" Value="32" /><Setter Property="Padding" Value="10,6" />
+      <Setter Property="Width" Value="28" /><Setter Property="Height" Value="24" /><Setter Property="Padding" Value="6,3" />
       <Setter Property="FontSize" Value="14" /><Setter Property="Foreground" Value="#DEC4D3" /><Setter Property="Background" Value="#14F3C2D7" /><Setter Property="BorderBrush" Value="#30F3C2D7" />
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
         <Border x:Name="StopSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
@@ -33,25 +36,22 @@
         </Border>
         <ControlTemplate.Triggers>
           <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="StopSurface" Property="Background" Value="#2CF3C2D7" /><Setter Property="Foreground" Value="{StaticResource RoseBrush}" /></Trigger>
-          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="StopSurface" Property="BorderBrush" Value="{StaticResource AccentBrush}" /></Trigger>
-          <Trigger Property="IsPressed" Value="True"><Setter TargetName="StopSurface" Property="Background" Value="#42F3C2D7" /></Trigger>
           <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35" /></Trigger>
         </ControlTemplate.Triggers>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="UsageButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
-        <Border x:Name="UsageBody" Background="Transparent" Padding="{TemplateBinding Padding}">
+        <Border x:Name="UsageBody" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
           <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
         </Border>
         <ControlTemplate.Triggers>
           <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="UsageBody" Property="Background" Value="#10CFDDFB" /></Trigger>
-          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="UsageBody" Property="Background" Value="#20BDAAF2" /></Trigger>
         </ControlTemplate.Triggers>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="ServiceStatus" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="9" /><Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+      <Setter Property="FontSize" Value="10" /><Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding StatusTone}" Value="{x:Static core:ServiceTone.Good}"><Setter Property="Foreground" Value="#A3CDBC" /></DataTrigger>
         <DataTrigger Binding="{Binding StatusTone}" Value="{x:Static core:ServiceTone.Warning}"><Setter Property="Foreground" Value="#E4CEA0" /></DataTrigger>
@@ -61,6 +61,7 @@
     <DataTemplate x:Key="ServiceStatusTemplate"><StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Hint}"><TextBlock Text="●" Style="{StaticResource ServiceStatus}" FontSize="7" Margin="0,0,4,0" VerticalAlignment="Center" /><TextBlock Text="{Binding StatusText}" Style="{StaticResource ServiceStatus}" /></StackPanel></DataTemplate>
     <BooleanToVisibilityConverter x:Key="Visible" />
     <Style x:Key="RowActionButton" TargetType="Button">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
       <Setter Property="Width" Value="22" /><Setter Property="Height" Value="16" /><Setter Property="Margin" Value="0,0,2,0" /><Setter Property="IsTabStop" Value="False" />
       <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" /><Setter Property="FontSize" Value="11" /><Setter Property="Cursor" Value="Hand" />
       <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -68,7 +69,6 @@
         <Border x:Name="Body" Background="Transparent" CornerRadius="4"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
         <ControlTemplate.Triggers>
           <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Body" Property="Background" Value="#26CFDDFB" /><Setter Property="Foreground" Value="{StaticResource AccentBrush}" /></Trigger>
-          <Trigger Property="IsPressed" Value="True"><Setter TargetName="Body" Property="Background" Value="#40BDAAF2" /></Trigger>
           <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35" /></Trigger>
         </ControlTemplate.Triggers>
       </ControlTemplate></Setter.Value></Setter>
@@ -77,6 +77,7 @@
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Border Height="1" Margin="8,4" Background="{StaticResource DividerBrush}" /></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style x:Key="ProjectMenuItem" TargetType="MenuItem">
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" /><Setter Property="Padding" Value="12,8" />
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
         <Border x:Name="Body" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" /></Border>
@@ -87,32 +88,32 @@
     <!-- Implicit item styles instead of ItemContainerStyle, so separators keep their own style. -->
     <ContextMenu x:Key="ProjectMenu" x:Shared="False" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Template="{StaticResource RowMenuTemplate}" FontSize="11" Foreground="{StaticResource TextBrush}" Opened="RowMenu_Opened">
       <ContextMenu.Resources><Style TargetType="MenuItem" BasedOn="{StaticResource ProjectMenuItem}" /></ContextMenu.Resources>
-      <MenuItem Header="Öppna i webbläsaren" Tag="browse" IsEnabled="{Binding CanBrowse}" Click="Browse_Click" />
+      <MenuItem Header="{local:Loc 'Öppna i webbläsaren'}" Tag="browse" IsEnabled="{Binding CanBrowse}" Click="Browse_Click" />
       <MenuItem Header="{Binding Address}" HeaderStringFormat="Kopiera {0}" Tag="copy" Click="CopyAddress_Click" />
       <MenuItem Header="{Binding CopyIdLabel}" Tag="copy-id" Click="CopyId_Click" />
       <Separator Style="{StaticResource MenuSeparator}" />
-      <MenuItem Header="Öppna terminal i projektmappen" Tag="terminal" Click="OpenTerminal_Click" />
-      <MenuItem Header="Öppna i editor" Tag="editor" Click="OpenEditor_Click" />
+      <MenuItem Header="{local:Loc 'Öppna terminal i projektmappen'}" Tag="terminal" Click="OpenTerminal_Click" />
+      <MenuItem Header="{local:Loc 'Öppna i editor'}" Tag="editor" Click="OpenEditor_Click" />
       <Separator Style="{StaticResource MenuSeparator}" />
-      <MenuItem Header="Visa logg" Tag="log" IsEnabled="{Binding CanShowLog}" Click="RowLog_Click" />
-      <MenuItem Header="Starta om" Tag="restart" IsEnabled="{Binding CanRestart}" Click="RowRestart_Click" />
-      <MenuItem Header="Stoppa…" Tag="stop" IsEnabled="{Binding CanStop}" Click="StopPort_Click" />
+      <MenuItem Header="{local:Loc 'Visa logg'}" Tag="log" IsEnabled="{Binding CanShowLog}" Click="RowLog_Click" />
+      <MenuItem Header="{local:Loc 'Starta om'}" Tag="restart" IsEnabled="{Binding CanRestart}" Click="RowRestart_Click" />
+      <MenuItem Header="{local:Loc 'Stoppa…'}" Tag="stop" IsEnabled="{Binding CanStop}" Click="StopPort_Click" />
     </ContextMenu>
     <ContextMenu x:Key="LaunchMenu" x:Shared="False" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Template="{StaticResource RowMenuTemplate}" FontSize="11" Foreground="{StaticResource TextBrush}" Opened="RowMenu_Opened">
       <ContextMenu.Resources><Style TargetType="MenuItem" BasedOn="{StaticResource ProjectMenuItem}" /></ContextMenu.Resources>
       <MenuItem Header="{Binding ActionLabel}" Tag="toggle" IsEnabled="{Binding CanAct}" Click="Launch_Click" />
-      <MenuItem Header="Starta om" Tag="restart" IsEnabled="{Binding CanRestart}" Click="RestartLaunch_Click" />
-      <MenuItem Header="Visa logg" Tag="log" Click="Log_Click" />
-      <MenuItem Header="Redigera…" Tag="edit" IsEnabled="{Binding CanEdit}" Click="Edit_Click" />
+      <MenuItem Header="{local:Loc 'Starta om'}" Tag="restart" IsEnabled="{Binding CanRestart}" Click="RestartLaunch_Click" />
+      <MenuItem Header="{local:Loc 'Visa logg'}" Tag="log" Click="Log_Click" />
+      <MenuItem Header="{local:Loc 'Redigera…'}" Tag="edit" IsEnabled="{Binding CanEdit}" Click="Edit_Click" />
       <Separator Style="{StaticResource MenuSeparator}" />
-      <MenuItem Header="Öppna terminal i arbetsmappen" Tag="terminal" Click="LaunchTerminal_Click" />
-      <MenuItem Header="Öppna i editor" Tag="editor" Click="LaunchEditor_Click" />
+      <MenuItem Header="{local:Loc 'Öppna terminal i arbetsmappen'}" Tag="terminal" Click="LaunchTerminal_Click" />
+      <MenuItem Header="{local:Loc 'Öppna i editor'}" Tag="editor" Click="LaunchEditor_Click" />
     </ContextMenu>
     <Style x:Key="PortRow" TargetType="Border">
-      <Setter Property="MinHeight" Value="44" /><Setter Property="Background" Value="Transparent" /><Setter Property="Focusable" Value="True" />
+      <Setter Property="MinHeight" Value="52" /><Setter Property="Background" Value="Transparent" /><Setter Property="Focusable" Value="True" />
       <Setter Property="BorderBrush" Value="{StaticResource DividerBrush}" /><Setter Property="BorderThickness" Value="0,0,0,1" />
       <Setter Property="ToolTip" Value="{Binding Hint}" /><Setter Property="ContextMenu" Value="{StaticResource ProjectMenu}" />
-      <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#10CFDDFB" /></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Background" Value="#20BDAAF2" /></Trigger></Style.Triggers>
+      <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#10CFDDFB" /></Trigger></Style.Triggers>
     </Style>
     <Style x:Key="LaunchRow" TargetType="Border" BasedOn="{StaticResource PortRow}">
       <Setter Property="ToolTip" Value="{Binding RowHint}" /><Setter Property="ContextMenu" Value="{StaticResource LaunchMenu}" />
@@ -121,11 +122,11 @@
       <Setter Property="Foreground" Value="{StaticResource AccentBrush}" /><Setter Property="Background" Value="#14CFDDFB" /><Setter Property="BorderBrush" Value="#30CFDDFB" />
     </Style>
     <DataTemplate x:Key="PortItemTemplate">
-      <Border x:Name="Row" Style="{StaticResource PortRow}" Padding="10,4,4,4" PreviewMouseLeftButtonDown="PortRow_MouseDown" KeyDown="PortRow_KeyDown">
+      <Border x:Name="Row" Style="{StaticResource PortRow}" Padding="10,9,4,7" PreviewMouseLeftButtonDown="PortRow_MouseDown" KeyDown="PortRow_KeyDown">
         <Grid>
-          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="38" /></Grid.ColumnDefinitions>
           <!-- A faint tint marks a failing service; rows never reorder under the cursor. -->
-          <Rectangle x:Name="ToneWash" Grid.ColumnSpan="2" Margin="-10,-4,-4,-4" Fill="Transparent" IsHitTestVisible="False" />
+          <Rectangle x:Name="ToneWash" Grid.ColumnSpan="2" Margin="-10,-9,-4,-7" Fill="Transparent" IsHitTestVisible="False" />
           <StackPanel VerticalAlignment="Center">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -138,19 +139,19 @@
             </Grid>
             <Grid Margin="22,2,0,0" Height="16">
               <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-              <TextBlock x:Name="RowResources" Text="{Binding ResourceSummary}" FontSize="9" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+              <TextBlock x:Name="RowResources" Text="{Binding ResourceSummary}" FontSize="10" Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
               <StackPanel x:Name="RowActions" Orientation="Horizontal" Visibility="Collapsed" Margin="-4,0,0,0" VerticalAlignment="Center">
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE774;" Click="Browse_Click" Visibility="{Binding CanBrowse, Converter={StaticResource Visible}}" ToolTip="Öppna i webbläsaren" AutomationProperties.Name="Öppna i webbläsaren" />
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE756;" Click="OpenTerminal_Click" ToolTip="Öppna terminal i projektmappen" AutomationProperties.Name="Öppna terminal i projektmappen" />
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE70F;" Click="OpenEditor_Click" ToolTip="{Binding DataContext.EditorActionLabel, RelativeSource={RelativeSource AncestorType=Window}}" AutomationProperties.Name="Öppna i editor" />
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE8C8;" Click="CopyAddress_Click" ToolTip="{Binding Address}" ToolTipService.InitialShowDelay="200" AutomationProperties.Name="Kopiera adress" />
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE8A5;" Click="RowLog_Click" Visibility="{Binding CanShowLog, Converter={StaticResource Visible}}" ToolTip="Visa logg" AutomationProperties.Name="Visa logg" />
-                <Button Style="{StaticResource RowActionButton}" Content="&#xE72C;" Click="RowRestart_Click" Visibility="{Binding CanRestart, Converter={StaticResource Visible}}" ToolTip="Starta om" AutomationProperties.Name="Starta om" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE774;" Click="Browse_Click" Visibility="{Binding CanBrowse, Converter={StaticResource Visible}}" ToolTip="{local:Loc 'Öppna i webbläsaren'}" AutomationProperties.Name="{local:Loc 'Öppna i webbläsaren'}" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE756;" Click="OpenTerminal_Click" ToolTip="{local:Loc 'Öppna terminal i projektmappen'}" AutomationProperties.Name="{local:Loc 'Öppna terminal i projektmappen'}" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE70F;" Click="OpenEditor_Click" ToolTip="{Binding DataContext.EditorActionLabel, RelativeSource={RelativeSource AncestorType=Window}}" AutomationProperties.Name="{local:Loc 'Öppna i editor'}" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE8C8;" Click="CopyAddress_Click" ToolTip="{Binding Address}" ToolTipService.InitialShowDelay="200" AutomationProperties.Name="{local:Loc 'Kopiera adress'}" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE8A5;" Click="RowLog_Click" Visibility="{Binding CanShowLog, Converter={StaticResource Visible}}" ToolTip="{local:Loc 'Visa logg'}" AutomationProperties.Name="{local:Loc 'Visa logg'}" />
+                <Button Style="{StaticResource RowActionButton}" Content="&#xE72C;" Click="RowRestart_Click" Visibility="{Binding CanRestart, Converter={StaticResource Visible}}" ToolTip="{local:Loc 'Starta om'}" AutomationProperties.Name="{local:Loc 'Starta om'}" />
               </StackPanel>
               <ContentControl Grid.Column="1" Content="{Binding}" ContentTemplate="{StaticResource ServiceStatusTemplate}" Margin="8,0,0,0" />
             </Grid>
           </StackPanel>
-          <Button x:Name="DenseStop" Grid.Column="1" IsEnabled="{Binding CanStop}" Click="StopPort_Click" Style="{StaticResource DenseStopButton}" Margin="6,0,4,0" ToolTip="Stoppa hela processen eller containern, inklusive alla dess portar" AutomationProperties.Name="{Binding Name, StringFormat=Stoppa {0}}">
+          <Button x:Name="DenseStop" Grid.Column="1" IsEnabled="{Binding CanStop}" Click="StopPort_Click" Style="{StaticResource DenseStopButton}" Margin="6,0,4,0" ToolTip="{local:Loc 'Stoppa hela processen eller containern, inklusive alla dess portar'}" AutomationProperties.Name="{Binding Name, StringFormat=Stoppa {0}}">
             <Rectangle Width="8" Height="8" RadiusX="1" RadiusY="1" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
           </Button>
         </Grid>
@@ -162,14 +163,14 @@
       </DataTemplate.Triggers>
     </DataTemplate>
     <DataTemplate x:Key="LaunchItemTemplate">
-      <Border x:Name="Row" Style="{StaticResource LaunchRow}" Padding="10,4,4,4" PreviewMouseLeftButtonDown="LaunchRow_MouseDown">
+      <Border x:Name="Row" Style="{StaticResource LaunchRow}" Padding="10,9,4,7" PreviewMouseLeftButtonDown="LaunchRow_MouseDown">
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
-          <Rectangle x:Name="ToneWash" Grid.ColumnSpan="2" Margin="-10,-4,-4,-4" Fill="Transparent" IsHitTestVisible="False" />
+          <Rectangle x:Name="ToneWash" Grid.ColumnSpan="2" Margin="-10,-9,-4,-7" Fill="Transparent" IsHitTestVisible="False" />
           <StackPanel x:Name="LaunchBody" VerticalAlignment="Center" Opacity="0.62">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="22" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-              <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Foreground="{StaticResource AccentStrongBrush}" VerticalAlignment="Center" ToolTip="Snabbstart" />
+              <TextBlock Text="&#xE945;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Foreground="{StaticResource AccentStrongBrush}" VerticalAlignment="Center" ToolTip="{local:Loc 'Snabbstart'}" />
               <TextBlock x:Name="LaunchName" Grid.Column="1" Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
               <TextBlock Grid.Column="2" Text="{Binding Command}" FontFamily="Cascadia Mono,Consolas" FontSize="10" Foreground="{StaticResource MutedBrush}" MaxWidth="150" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="10,0,0,0" />
             </Grid>
@@ -199,61 +200,72 @@
     <Border BorderThickness="1" CornerRadius="7">
       <Grid>
         <Grid.RowDefinitions>
-          <RowDefinition x:Name="ToolbarRow" Height="30" />
+          <RowDefinition x:Name="ToolbarRow" Height="36" />
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid x:Name="Toolbar" Margin="4,0,4,0">
+        <Grid x:Name="Toolbar" Background="Transparent" shell:WindowChrome.IsHitTestVisibleInChrome="True" PreviewMouseLeftButtonDown="Toolbar_MouseDown" PreviewMouseMove="Toolbar_MouseMove" PreviewMouseLeftButtonUp="Toolbar_MouseUp" LostMouseCapture="Toolbar_LostMouseCapture">
+          <Grid Margin="4,0,4,6">
           <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Grid VerticalAlignment="Center">
+          <Button x:Name="OtterMenuButton" Click="Appearance_Click" Style="{StaticResource DenseIconButton}" Width="32" Height="28" Margin="0,0,12,0" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="{local:Loc 'Otter Monitor · meny · dra för att flytta fönstret'}" AutomationProperties.Name="{local:Loc 'Öppna menyn via Otter-loggan'}"><Image x:Name="OtterMenuLogo" Width="20" Height="20" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="HighQuality" /></Button>
+          <Grid Grid.Column="1" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
               <ColumnDefinition />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Border x:Name="CompactDragArea" Background="Transparent" Height="26" shell:WindowChrome.IsHitTestVisibleInChrome="False" ToolTip="{Binding BalanceHint}">
+            <Border x:Name="CompactDragArea" Background="Transparent" Height="26" shell:WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="{Binding BalanceHint}">
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions>
-                <Button x:Name="BalanceButton" Click="Balance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="OpenAI-saldo och koppling" ToolTip="{Binding BalanceHint}">
-                  <StackPanel Orientation="Horizontal"><Path x:Name="OpenAiLogo" Data="{StaticResource OpenAiBlossom}" Fill="#FFFFFF" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" /><TextBlock x:Name="CompactBalanceText" Text="{Binding BalanceLabel}" MaxWidth="156" IsHitTestVisible="False" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></StackPanel>
+                <Grid.ColumnDefinitions><ColumnDefinition x:Name="OpenAiBalanceColumn" Width="1.2*" MaxWidth="130" /><ColumnDefinition x:Name="JevBalanceColumn" Width="*" MaxWidth="110" /><ColumnDefinition x:Name="AnthropicBalanceColumn" Width="1.35*" MaxWidth="150" /><ColumnDefinition x:Name="BalanceCaptionColumn" Width="24" /></Grid.ColumnDefinitions>
+                <Button x:Name="BalanceButton" Click="Balance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'OpenAI-saldo och koppling'}" ToolTip="{Binding BalanceHint}">
+                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="OpenAiLogo" Data="{StaticResource OpenAiBlossom}" Fill="#FFFFFF" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" /><TextBlock x:Name="CompactBalanceText" Grid.Column="1" Text="{Binding OpenAiHeaderLabel}" IsHitTestVisible="False" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
                 </Button>
-                <Border x:Name="CompactCaptionArea" Grid.Column="1" Background="Transparent" shell:WindowChrome.IsHitTestVisibleInChrome="False" ToolTip="Dra här för att flytta fönstret · Börja skriva för att filtrera" />
+                <Button x:Name="JevBalanceButton" Grid.Column="1" Click="JevBalance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'JEV-saldo och koppling'}" ToolTip="{Binding JevBalanceHint}">
+                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="JevLogo" Data="{StaticResource JevMark}" Fill="#FFFFFF" Width="12" Height="15" Stretch="Uniform" Margin="0,0,5,0" IsHitTestVisible="False" /><TextBlock x:Name="CompactJevBalanceText" Grid.Column="1" Text="{Binding JevHeaderLabel}" IsHitTestVisible="False" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
+                </Button>
+                <Button x:Name="AnthropicBalanceButton" Grid.Column="2" Click="AnthropicBalance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'Anthropic API-saldo och koppling'}" ToolTip="{Binding AnthropicBalanceHint}">
+                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="ClaudeLogo" Data="{StaticResource ClaudeMark}" Fill="#FFFFFF" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" IsHitTestVisible="False" /><TextBlock Grid.Column="1" Text="{Binding AnthropicHeaderLabel}" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
+                </Button>
+                <Border x:Name="CompactCaptionArea" Grid.Column="3" Background="Transparent" shell:WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="{local:Loc 'Dra i överraden för att flytta fönstret · Börja skriva för att filtrera'}" />
               </Grid>
             </Border>
             <Border x:Name="FilterBar" Visibility="Collapsed" Height="24" Margin="2,0,0,0" CornerRadius="7" Background="#28141224" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" shell:WindowChrome.IsHitTestVisibleInChrome="True">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Left" Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="7,0,5,0" />
-                <Button x:Name="FilterClear" DockPanel.Dock="Right" Content="&#xE711;" Style="{StaticResource RowActionButton}" FontSize="9" Click="FilterClear_Click" ToolTip="Rensa filtret (Esc)" AutomationProperties.Name="Rensa filtret" />
-                <TextBox x:Name="FilterBox" TextChanged="Filter_Changed" PreviewKeyDown="FilterBox_PreviewKeyDown" FontSize="10.5" Foreground="{StaticResource TextBrush}" CaretBrush="{StaticResource AccentBrush}" VerticalContentAlignment="Center" ToolTip="Filtrerar på namn, port, PID, runtime, mapp eller snabbstart. Söker bland alla portar. Esc rensar, ↓ går till listan, Enter öppnar första träffen." AutomationProperties.Name="Filtrera portar">
+                <Button x:Name="FilterClear" DockPanel.Dock="Right" Content="&#xE711;" Style="{StaticResource RowActionButton}" FontSize="9" Click="FilterClear_Click" ToolTip="{local:Loc 'Rensa filtret (Esc)'}" AutomationProperties.Name="{local:Loc 'Rensa filtret'}" />
+                <TextBox x:Name="FilterBox" TextChanged="Filter_Changed" PreviewKeyDown="FilterBox_PreviewKeyDown" FontSize="10.5" Foreground="{StaticResource TextBrush}" CaretBrush="{StaticResource AccentBrush}" VerticalContentAlignment="Center" ToolTip="{local:Loc 'Filtrerar på namn, port, PID, runtime, mapp eller snabbstart. Söker bland alla portar. Esc rensar, ↓ går till listan, Enter öppnar första träffen.'}" AutomationProperties.Name="{local:Loc 'Filtrera portar'}">
                   <TextBox.Template><ControlTemplate TargetType="TextBox"><ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" /></ControlTemplate></TextBox.Template>
                 </TextBox>
               </DockPanel>
             </Border>
           </Grid>
-          <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-            <Button x:Name="DropdownButton" Content="&#xE70D;" Click="Appearance_Click" Style="{StaticResource DenseIconButton}" Margin="0,0,2,0" ToolTip="Verktyg och inställningar" AutomationProperties.Name="Verktyg och inställningar" />
-            <Button x:Name="MinimizeButton" Content="" Click="Minimize_Click" Style="{StaticResource DenseIconButton}" Margin="0,0,2,0" AutomationProperties.Name="Minimera" ToolTip="Minimera" />
-            <Button x:Name="CloseButton" Content="" Click="Close_Click" Style="{StaticResource DenseIconButton}" AutomationProperties.Name="Stäng" ToolTip="Stäng" />
+          <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+            <Button x:Name="DropdownButton" Content="&#xE70D;" Click="Appearance_Click" Style="{StaticResource DenseIconButton}" Margin="0,0,2,0" ToolTip="{local:Loc 'Verktyg och inställningar'}" AutomationProperties.Name="{local:Loc 'Verktyg och inställningar'}" />
+            <Button x:Name="MinimizeButton" Content="" Click="Minimize_Click" Style="{StaticResource DenseIconButton}" Margin="0,0,2,0" AutomationProperties.Name="{local:Loc 'Minimera'}" ToolTip="{local:Loc 'Minimera'}" />
+            <Button x:Name="CloseButton" Content="" Click="Close_Click" Style="{StaticResource DenseIconButton}" AutomationProperties.Name="{local:Loc 'Stäng'}" ToolTip="{local:Loc 'Stäng'}" />
           </StackPanel>
+          </Grid>
         </Grid>
+        <Border Background="{StaticResource LineBrush}" Height="1" VerticalAlignment="Bottom" IsHitTestVisible="False" />
         <Grid x:Name="DensePorts" Grid.Row="1">
-          <ScrollViewer x:Name="DenseScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="132" MaxHeight="308" Padding="0">
+          <ScrollViewer x:Name="DenseScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="156" MaxHeight="302" Padding="0">
             <StackPanel>
               <ItemsControl x:Name="DensePortList" ItemsSource="{Binding Ports}" ItemTemplate="{StaticResource PortItemTemplate}" Margin="0" Padding="0" />
               <!-- Quick starts without an open port: idle, failed, or running before their server listens. -->
               <ItemsControl x:Name="LaunchList" ItemsSource="{Binding LaunchRows}" ItemTemplate="{StaticResource LaunchItemTemplate}" Margin="0" Padding="0" />
             </StackPanel>
           </ScrollViewer>
-          <TextBlock x:Name="DenseEmptyPorts" Text="Läser aktiva portar…" FontSize="11" Foreground="{StaticResource MutedBrush}" Height="22" VerticalAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,0" Visibility="Collapsed" />
+          <TextBlock x:Name="DenseEmptyPorts" Text="{local:Loc 'Läser aktiva portar…'}" FontSize="11" Foreground="{StaticResource MutedBrush}" Height="22" VerticalAlignment="Center" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="12,0" Visibility="Collapsed" />
           <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16,6" Visibility="Collapsed">
             <Image x:Name="EmptyMascot" Width="38" Height="38" HorizontalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" Opacity="0.9" />
-            <TextBlock Text="Inga tjänster igång" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+            <TextBlock Text="{local:Loc 'Inga tjänster igång'}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0" />
             <TextBlock x:Name="EmptyHint" FontSize="9.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="270" Margin="0,3,0,0" />
-            <Button x:Name="EmptyAdd" Content="+  Ny snabbstart" Click="Add_Click" Style="{StaticResource QuietButton}" HorizontalAlignment="Center" Padding="10,4" FontSize="10" Margin="0,4,0,0" Foreground="{StaticResource AccentBrush}" />
+            <Button x:Name="EmptyAdd" Content="{local:Loc '+  Ny snabbstart'}" Click="Add_Click" Style="{StaticResource QuietButton}" HorizontalAlignment="Center" Padding="10,4" FontSize="10" Margin="0,4,0,0" Foreground="{StaticResource AccentBrush}" />
           </StackPanel>
           <!-- Confirmations float above the list and never take clicks from the rows underneath. -->
           <Border x:Name="Toast" Visibility="Collapsed" Opacity="0" IsHitTestVisible="False" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12,0,12,8" Padding="10,6" CornerRadius="9" Background="#F22C293D" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
@@ -268,9 +280,9 @@
           <Grid>
           <Grid x:Name="CompactUsageBar" Height="27" Visibility="Collapsed">
             <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="12" /><ColumnDefinition /></Grid.ColumnDefinitions>
-            <Button x:Name="CompactCodexUsage" Grid.Column="0" DataContext="{Binding CodexUsageRow}" Content="{Binding}" ContentTemplate="{StaticResource CompactUsageTemplate}" Click="Usage_Click" Style="{StaticResource UsageButton}" Padding="8,0" ToolTip="{Binding Hint}" AutomationProperties.Name="Codex återstående kvot" />
+            <Button x:Name="CompactCodexUsage" Grid.Column="0" DataContext="{Binding CodexUsageRow}" Content="{Binding}" ContentTemplate="{StaticResource CompactUsageTemplate}" Click="Usage_Click" Style="{StaticResource UsageButton}" Padding="8,0" ToolTip="{Binding Hint}" AutomationProperties.Name="{local:Loc 'Codex återstående kvot'}" />
             <TextBlock x:Name="UsageDivider" Grid.Column="1" Text="|" FontSize="10" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Button x:Name="CompactClaudeUsage" Grid.Column="2" DataContext="{Binding ClaudeUsageRow}" Content="{Binding}" ContentTemplate="{StaticResource CompactUsageTemplate}" Click="Usage_Click" Style="{StaticResource UsageButton}" Padding="8,0" ToolTip="{Binding Hint}" AutomationProperties.Name="Claude Code återstående kvot" />
+            <Button x:Name="CompactClaudeUsage" Grid.Column="2" DataContext="{Binding ClaudeUsageRow}" Content="{Binding}" ContentTemplate="{StaticResource CompactUsageTemplate}" Click="Usage_Click" Style="{StaticResource UsageButton}" Padding="8,0" ToolTip="{Binding Hint}" AutomationProperties.Name="{local:Loc 'Claude Code återstående kvot'}" />
           </Grid>
 
           </Grid>
@@ -280,8 +292,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <TextBlock Text="SNABBSTARTER" Style="{StaticResource SectionLabel}" />
-          <Button Content="+  Lägg till" Click="Add_Click" HorizontalAlignment="Right" Style="{StaticResource QuietButton}" />
+          <TextBlock Text="{local:Loc 'SNABBSTARTER'}" Style="{StaticResource SectionLabel}" />
+          <Button Content="{local:Loc '+  Lägg till'}" Click="Add_Click" HorizontalAlignment="Right" Style="{StaticResource QuietButton}" />
           <ScrollViewer Grid.Row="1" MaxHeight="116" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="-5,9,-5,0" Padding="5">
             <StackPanel>
               <ItemsControl ItemsSource="{Binding QuickStarts}">
@@ -303,9 +315,9 @@
                           <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <Button Content="{Binding ActionLabel}" IsEnabled="{Binding CanAct}" Click="Launch_Click" Style="{StaticResource PrimaryButton}" Padding="12,8" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,0">
-                              <Button Content="Logg" Click="Log_Click" Style="{StaticResource QuietButton}" Padding="6,4" FontSize="9" />
-                              <Button Content="Redigera" IsEnabled="{Binding CanEdit}" Click="Edit_Click" Style="{StaticResource QuietButton}" Padding="4,4" FontSize="9" />
-                              <Button Content="&#xE777;" IsEnabled="{Binding CanRestart}" Click="RestartLaunch_Click" Style="{StaticResource QuietButton}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Padding="5,4" ToolTip="Starta om snabbstarten" AutomationProperties.Name="Starta om snabbstarten" />
+                              <Button Content="{local:Loc 'Logg'}" Click="Log_Click" Style="{StaticResource QuietButton}" Padding="6,4" FontSize="9" />
+                              <Button Content="{local:Loc 'Redigera'}" IsEnabled="{Binding CanEdit}" Click="Edit_Click" Style="{StaticResource QuietButton}" Padding="4,4" FontSize="9" />
+                              <Button Content="&#xE777;" IsEnabled="{Binding CanRestart}" Click="RestartLaunch_Click" Style="{StaticResource QuietButton}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Padding="5,4" ToolTip="{local:Loc 'Starta om snabbstarten'}" AutomationProperties.Name="{local:Loc 'Starta om snabbstarten'}" />
                             </StackPanel>
                           </StackPanel>
                         </Grid>
@@ -314,7 +326,7 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <TextBlock x:Name="EmptyLaunches" Text="Lägg till en arbetsmapp och ett kommando." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,6,0,12" />
+              <TextBlock x:Name="EmptyLaunches" Text="{local:Loc 'Lägg till en arbetsmapp och ett kommando.'}" TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,6,0,12" />
             </StackPanel>
           </ScrollViewer>
         </Grid>

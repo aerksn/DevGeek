@@ -21,7 +21,7 @@ public static class Dialogs
         panel.Children.Add(new TextBlock { Text = title, FontSize = 20, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16) });
         panel.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)window.FindResource("MutedBrush"), MaxHeight = 350 });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 24, 0, 0) };
-        if (cancel) { var no = new Button { Content = "Avbryt", IsCancel = true, Margin = new Thickness(0, 0, 10, 0) }; buttons.Children.Add(no); }
+        if (cancel) { var no = new Button { Content = UiText.T("Avbryt"), IsCancel = true, Margin = new Thickness(0, 0, 10, 0) }; buttons.Children.Add(no); }
         var yes = new Button { Content = action, MinWidth = 90, IsDefault = !cancel, Style = (Style)window.FindResource(cancel ? "StopButton" : "PrimaryButton") };
         yes.Click += (_, _) => window.DialogResult = true;
         buttons.Children.Add(yes); panel.Children.Add(buttons); window.Content = panel;
@@ -39,12 +39,12 @@ public sealed class QuickStartDialog : Window
     private readonly ListBox projects = new(), commands = new();
     private readonly TextBlock scanStatus = new() { FontSize = 11, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(24, 0, 24, 0), IsHitTestVisible = false };
     private readonly Button rootsButton = new();
-    private readonly TextBlock commandHint = new() { Text = "Välj ett projekt så visas dess skript här. Dubbelklick sparar direkt.", FontSize = 11, Opacity = 0.8 };
+    private readonly TextBlock commandHint = new() { Text = UiText.T("Välj ett projekt så visas dess skript här. Dubbelklick sparar direkt."), FontSize = 11, Opacity = 0.8 };
     private Thickness labelMargin = new(0, 16, 0, 7);
     private readonly FrameworkElement? commandRow;
     private readonly IReadOnlyCollection<QuickStart> added;
     private readonly Func<List<string>, bool>? saveRoots;
-    private readonly Button save = new() { Content = "Spara snabbstart", IsDefault = true };
+    private readonly Button save = new() { Content = UiText.T("Spara snabbstart"), IsDefault = true };
     private List<string> roots;
     private List<ProjectChoice> choices = [];
     private CancellationTokenSource? scanning;
@@ -61,32 +61,32 @@ public sealed class QuickStartDialog : Window
         this.existing = existing; this.added = added ?? []; this.saveRoots = saveRoots;
         roots = projectRoots?.ToList() ?? [];
         var picker = existing is null && projectRoots is not null;
-        Title = existing is null ? "Ny snabbstart" : "Redigera snabbstart";
+        Title = existing is null ? UiText.T("Ny snabbstart") : UiText.T("Redigera snabbstart");
         Style = (Style)FindResource(typeof(Window));
         _ = new WindowMaterial(this);
         Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         var panel = new StackPanel { Margin = new Thickness(25) };
         panel.Children.Add(new TextBlock { Text = Title, FontSize = 23, FontWeight = FontWeights.SemiBold });
-        panel.Children.Add(new TextBlock { Text = picker ? "Välj ett projekt och ett kommando, eller fyll i själv." : "En arbetsmapp. Ett kommando. Ett klick.", Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 7, 0, 8) });
+        panel.Children.Add(new TextBlock { Text = picker ? UiText.T("Välj ett projekt och ett kommando, eller fyll i själv.") : UiText.T("En arbetsmapp. Ett kommando. Ett klick."), Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 7, 0, 8) });
         if (picker) { commandRow = BuildPicker(panel); labelMargin = new(0, 12, 0, 6); }
-        Label(panel, "Namn"); panel.Children.Add(name);
-        Label(panel, "Arbetsmapp");
+        Label(panel, UiText.T("Namn")); panel.Children.Add(name);
+        Label(panel, UiText.T("Arbetsmapp"));
         var directoryRow = new DockPanel();
-        var browse = new Button { Content = "Välj…", Margin = new Thickness(8, 0, 0, 0) }; DockPanel.SetDock(browse, Dock.Right);
-        browse.Click += (_, _) => { var dialog = new OpenFolderDialog { Title = "Välj projektets arbetsmapp" }; if (Directory.Exists(directory.Text)) dialog.InitialDirectory = directory.Text; if (dialog.ShowDialog(this) == true) directory.Text = dialog.FolderName; };
+        var browse = new Button { Content = UiText.T("Välj…"), Margin = new Thickness(8, 0, 0, 0) }; DockPanel.SetDock(browse, Dock.Right);
+        browse.Click += (_, _) => { var dialog = new OpenFolderDialog { Title = UiText.T("Välj projektets arbetsmapp") }; if (Directory.Exists(directory.Text)) dialog.InitialDirectory = directory.Text; if (dialog.ShowDialog(this) == true) directory.Text = dialog.FolderName; };
         directoryRow.Children.Add(browse); directoryRow.Children.Add(directory); panel.Children.Add(directoryRow);
-        Label(panel, "Kommando"); command.FontFamily = new FontFamily("Consolas"); panel.Children.Add(command);
-        panel.Children.Add(new TextBlock { Text = picker ? "Körs i bakgrunden via cmd.exe. Utdata visas under Logg." : "Exempel: bun run dev, npm run dev eller docker compose up -d.\nKörs i bakgrunden via cmd.exe. Utdata visas under Logg.", TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 9, 0, 0) });
+        Label(panel, UiText.T("Kommando")); command.FontFamily = new FontFamily("Consolas"); panel.Children.Add(command);
+        panel.Children.Add(new TextBlock { Text = picker ? UiText.T("Körs i bakgrunden via cmd.exe. Utdata visas under Logg.") : UiText.T("Exempel: bun run dev, npm run dev eller docker compose up -d.\nKörs i bakgrunden via cmd.exe. Utdata visas under Logg."), TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 9, 0, 0) });
         panel.Children.Add(error);
         var buttons = new DockPanel { Margin = new Thickness(0, 15, 0, 0) };
         if (existing is not null)
         {
-            var delete = new Button { Content = "Ta bort", Style = (Style)FindResource("StopButton") }; DockPanel.SetDock(delete, Dock.Left);
-            delete.Click += (_, _) => { if (Dialogs.Confirm(this, "Ta bort snabbstart?", $"Ta bort {existing.Name} från listan? Projektfilerna påverkas inte.", "Ta bort")) { DeleteRequested = true; DialogResult = true; } };
+            var delete = new Button { Content = UiText.T("Ta bort"), Style = (Style)FindResource("StopButton") }; DockPanel.SetDock(delete, Dock.Left);
+            delete.Click += (_, _) => { if (Dialogs.Confirm(this, UiText.T("Ta bort snabbstart?"), UiText.F("Ta bort {0} fr\u00E5n listan? Projektfilerna p\u00E5verkas inte.", existing.Name), UiText.T("Ta bort"))) { DeleteRequested = true; DialogResult = true; } };
             buttons.Children.Add(delete);
         }
         var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        right.Children.Add(new Button { Content = "Avbryt", IsCancel = true, Margin = new Thickness(0, 0, 9, 0) });
+        right.Children.Add(new Button { Content = UiText.T("Avbryt"), IsCancel = true, Margin = new Thickness(0, 0, 9, 0) });
         save.Style = (Style)FindResource("PrimaryButton");
         save.Click += (_, _) => Submit();
         right.Children.Add(save); buttons.Children.Add(right); panel.Children.Add(buttons); Content = panel;
@@ -101,7 +101,7 @@ public sealed class QuickStartDialog : Window
         rootsButton.Style = (Style)FindResource("QuietButton"); rootsButton.Padding = new Thickness(10, 6, 10, 6); rootsButton.Margin = new Thickness(8, 0, 0, 0);
         rootsButton.Click += (_, _) => ChooseRoots();
         DockPanel.SetDock(rootsButton, Dock.Right); header.Children.Add(rootsButton);
-        var hint = new TextBlock { Text = "Sök projekt, mapp eller kommando…", Foreground = (Brush)FindResource("MutedBrush"), FontSize = 12, Margin = new Thickness(15, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        var hint = new TextBlock { Text = UiText.T("Sök projekt, mapp eller kommando…"), Foreground = (Brush)FindResource("MutedBrush"), FontSize = 12, Margin = new Thickness(15, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
         search.TextChanged += (_, _) => { hint.Visibility = search.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; ShowChoices(); };
         search.PreviewKeyDown += (_, e) =>
         {
@@ -110,7 +110,7 @@ public sealed class QuickStartDialog : Window
             projects.SelectedIndex = Math.Max(0, projects.SelectedIndex);
             if (e.Key == Key.Down && projects.ItemContainerGenerator.ContainerFromIndex(projects.SelectedIndex) is ListBoxItem item) item.Focus();
         };
-        AutomationProperties.SetName(search, "Sök projekt");
+        AutomationProperties.SetName(search, UiText.T("Sök projekt"));
         header.Children.Add(new Grid { Children = { search, hint } });
         panel.Children.Add(header);
 
@@ -125,14 +125,14 @@ public sealed class QuickStartDialog : Window
 
         // Always present, so choosing a project never changes the dialog's height.
         var row = new StackPanel { Margin = new Thickness(0, 10, 0, 0), MinHeight = 52 };
-        row.Children.Add(new TextBlock { Text = "Kommandon i projektet", FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 0, 0, 6) });
+        row.Children.Add(new TextBlock { Text = UiText.T("Kommandon i projektet"), FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), Margin = new Thickness(0, 0, 0, 6) });
         commandHint.Foreground = (Brush)FindResource("MutedBrush");
         row.Children.Add(commandHint);
         commands.Style = (Style)FindResource("ChipList"); commands.ItemContainerStyle = (Style)FindResource("ChipItem");
         commands.ItemTemplate = (DataTemplate)FindResource("ProjectCommandTemplate");
         commands.SelectionChanged += (_, _) => SelectCommand();
         commands.Visibility = Visibility.Collapsed;
-        AutomationProperties.SetName(commands, "Kommandon i projektet");
+        AutomationProperties.SetName(commands, UiText.T("Kommandon i projektet"));
         // Some projects have dozens of scripts; two rows show the likely ones and the rest scroll.
         row.Children.Add(new ScrollViewer { Content = commands, MaxHeight = 64, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false });
         panel.Children.Add(row);
@@ -147,7 +147,7 @@ public sealed class QuickStartDialog : Window
         var current = scanning = new CancellationTokenSource();
         var folders = roots.ToList();
         choices = []; ShowChoices();
-        scanStatus.Text = folders.Count == 0 ? "Välj en mapp med dina projekt via knappen ovan." : "Söker efter projekt i " + string.Join(", ", folders) + "…";
+        scanStatus.Text = folders.Count == 0 ? UiText.T("Välj en mapp med dina projekt via knappen ovan.") : UiText.T("Söker efter projekt i ") + string.Join(", ", folders) + "…";
         scanStatus.Visibility = Visibility.Visible;
         if (folders.Count == 0) return;
         Scan = Run();
@@ -158,7 +158,7 @@ public sealed class QuickStartDialog : Window
                 var found = await Task.Run(() => ProjectScanner.Scan(folders, current.Token), current.Token);
                 if (current.IsCancellationRequested) return;
                 choices = found.Select(candidate => new ProjectChoice(candidate, Note(candidate))).ToList();
-                scanStatus.Text = choices.Count == 0 ? "Inga projekt hittades i " + string.Join(", ", folders) + ". Välj andra mappar eller fyll i nedan." : "";
+                scanStatus.Text = choices.Count == 0 ? UiText.T("Inga projekt hittades i ") + string.Join(", ", folders) + UiText.T(". Välj andra mappar eller fyll i nedan.") : "";
                 ShowChoices();
             }
             catch (OperationCanceledException) { }
@@ -168,7 +168,7 @@ public sealed class QuickStartDialog : Window
     private string Note(ProjectCandidate candidate)
     {
         var same = added.Where(entry => string.Equals(Path.TrimEndingDirectorySeparator(entry.Directory), candidate.Directory, StringComparison.OrdinalIgnoreCase)).ToList();
-        return same.Any(entry => candidate.Commands.Any(option => string.Equals(option.Command, entry.Command, StringComparison.OrdinalIgnoreCase))) ? "tillagd" : "";
+        return same.Any(entry => candidate.Commands.Any(option => string.Equals(option.Command, entry.Command, StringComparison.OrdinalIgnoreCase))) ? UiText.T("tillagd") : "";
     }
 
     private void ShowChoices()
@@ -179,7 +179,7 @@ public sealed class QuickStartDialog : Window
         projects.ItemsSource = visible;
         projects.SelectedItem = visible.FirstOrDefault(choice => choice.Candidate == selected);
         if (choices.Count > 0) scanStatus.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (choices.Count > 0 && visible.Count == 0) scanStatus.Text = $"Inget projekt matchar ”{query}”.";
+        if (choices.Count > 0 && visible.Count == 0) scanStatus.Text = UiText.F("Inget projekt matchar \u201D{0}\u201D.", query);
     }
 
     private void SelectProject()
@@ -204,7 +204,7 @@ public sealed class QuickStartDialog : Window
 
     private void ChooseRoots()
     {
-        var dialog = new OpenFolderDialog { Title = "Välj mappar med dina projekt", Multiselect = true };
+        var dialog = new OpenFolderDialog { Title = UiText.T("Välj mappar med dina projekt"), Multiselect = true };
         if (roots.FirstOrDefault(Directory.Exists) is { } first) dialog.InitialDirectory = first;
         if (dialog.ShowDialog(this) != true || dialog.FolderNames.Length == 0) return;
         var chosen = dialog.FolderNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -214,18 +214,18 @@ public sealed class QuickStartDialog : Window
 
     private void UpdateRootsButton()
     {
-        rootsButton.Content = roots.Count == 0 ? "Välj mapp…" : "\uE8B7  " + roots[0] + (roots.Count > 1 ? $" +{roots.Count - 1}" : "");
+        rootsButton.Content = roots.Count == 0 ? UiText.T("Välj mapp…") : "\uE8B7  " + roots[0] + (roots.Count > 1 ? $" +{roots.Count - 1}" : "");
         rootsButton.FontFamily = new FontFamily("Segoe UI Variable, Segoe UI, Segoe Fluent Icons, Segoe MDL2 Assets");
-        rootsButton.ToolTip = (roots.Count == 0 ? "Inga mappar valda." : "Söker i:\n" + string.Join("\n", roots)) + "\nKlicka för att välja andra mappar. Valet sparas.";
-        AutomationProperties.SetName(rootsButton, "Välj projektmappar");
+        rootsButton.ToolTip = (roots.Count == 0 ? UiText.T("Inga mappar valda.") : UiText.T("Söker i:\n") + string.Join("\n", roots)) + UiText.T("\nKlicka för att välja andra mappar. Valet sparas.");
+        AutomationProperties.SetName(rootsButton, UiText.T("Välj projektmappar"));
     }
 
     private void Submit()
     {
         var folder = Environment.ExpandEnvironmentVariables(directory.Text.Trim());
-        if (string.IsNullOrWhiteSpace(name.Text)) { error.Text = "Ange ett namn eller välj ett projekt."; return; }
-        if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder)) { error.Text = "Välj en befintlig arbetsmapp med absolut sökväg."; return; }
-        if (string.IsNullOrWhiteSpace(command.Text) || command.Text.IndexOfAny(['\r', '\n', '\0']) >= 0) { error.Text = "Ange ett kommando på en rad."; return; }
+        if (string.IsNullOrWhiteSpace(name.Text)) { error.Text = UiText.T("Ange ett namn eller välj ett projekt."); return; }
+        if (!Path.IsPathFullyQualified(folder) || !Directory.Exists(folder)) { error.Text = UiText.T("Välj en befintlig arbetsmapp med absolut sökväg."); return; }
+        if (string.IsNullOrWhiteSpace(command.Text) || command.Text.IndexOfAny(['\r', '\n', '\0']) >= 0) { error.Text = UiText.T("Ange ett kommando på en rad."); return; }
         Result = new() { Id = existing?.Id ?? Guid.NewGuid(), Name = name.Text.Trim(), Directory = folder, Command = command.Text.Trim() }; DialogResult = true;
     }
 

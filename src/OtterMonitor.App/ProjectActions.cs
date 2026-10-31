@@ -56,8 +56,8 @@ public partial class MainWindow
     private void Browse_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) OpenProject(group, ProjectTarget.Browser); }
     private void OpenTerminal_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) OpenProject(group, ProjectTarget.Terminal); }
     private void OpenEditor_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) OpenProject(group, ProjectTarget.Editor); }
-    private void CopyAddress_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) Copy(group.Address, "Kopierade " + group.Address + "."); }
-    private void CopyId_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) Copy(group.CopyId, (group.IsDocker ? "Kopierade container-ID för " : "Kopierade PID för ") + group.Name + "."); }
+    private void CopyAddress_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) Copy(group.Address, UiText.T("Kopierade ") + group.Address + "."); }
+    private void CopyId_Click(object sender, RoutedEventArgs e) { if (RowGroup(sender) is { } group) Copy(group.CopyId, (group.IsDocker ? UiText.T("Kopierade container-ID för ") : UiText.T("Kopierade PID för ")) + group.Name + "."); }
     private void LaunchTerminal_Click(object sender, RoutedEventArgs e) { if (RowLaunch(sender) is { } entry) OpenDirectory(entry.Directory, entry.Name, editor: false); }
     private void LaunchEditor_Click(object sender, RoutedEventArgs e) { if (RowLaunch(sender) is { } entry) OpenDirectory(entry.Directory, entry.Name, editor: true); }
 
@@ -66,7 +66,7 @@ public partial class MainWindow
         if (preview) { previewCopies?.Add(text); SetStatus(message); return; }
         // Another program can briefly hold the clipboard open.
         try { Clipboard.SetDataObject(text, true); SetStatus(message); }
-        catch (System.Runtime.InteropServices.ExternalException) { SetStatus("Urklippet var upptaget. Försök igen.", problem: true); }
+        catch (System.Runtime.InteropServices.ExternalException) { SetStatus(UiText.T("Urklippet var upptaget. Försök igen."), problem: true); }
     }
 
     private void RowMenu_Opened(object sender, RoutedEventArgs e)
@@ -111,25 +111,25 @@ public partial class MainWindow
                 if (closed) return;
                 var owned = entries.Where(entry => current.Any(port => PortGroup.OwnerKey(port) == group.Key
                     && port.Port == entry.Port && port.Address == entry.Address && port.Protocol == entry.Protocol)).ToArray();
-                if (owned.Length == 0) { SetStatus("Processen lyssnar inte längre på de här portarna. Uppdatera portlistan.", problem: true); return; }
+                if (owned.Length == 0) { SetStatus(UiText.T("Processen lyssnar inte längre på de här portarna. Uppdatera portlistan."), problem: true); return; }
                 var reading = await serviceProbe.MeasureAsync(owned, telemetryStop.Token);
                 if (closed || !group.Entries.SequenceEqual(entries)) return;
                 group.SetProbe(reading);
                 if (WebServiceOpener.SelectUrl(owned, reading, DateTime.UtcNow) is { } uri)
                 {
                     WebServiceOpener.Open(uri);
-                    SetStatus("Öppnade " + uri + " för " + group.Name + ".");
+                    SetStatus(UiText.T("Öppnade ") + uri + UiText.T(" för ") + group.Name + ".");
                     return;
                 }
             }
-            if (target == ProjectTarget.Browser) { SetStatus(group.Name + " svarar inte med en webbsida just nu.", problem: true); return; }
+            if (target == ProjectTarget.Browser) { SetStatus(group.Name + UiText.T(" svarar inte med en webbsida just nu."), problem: true); return; }
             var directory = await Task.Run(() => ProjectOpener.ResolveDirectory(group.Entries[0]));
             if (closed) return;
             if (directory is null)
             {
-                Dialogs.Info(this, "Projektmappen kunde inte hittas", group.IsDocker
-                    ? "Den här containern saknar en tillgänglig lokal projektmapp. Docker Compose-projekt kan öppnas när containerns metadata anger en Windows-mapp som finns på datorn."
-                    : "Processens projektmapp kunde inte läsas eller finns inte längre. Uppdatera portlistan och försök igen.");
+                Dialogs.Info(this, UiText.T("Projektmappen kunde inte hittas"), group.IsDocker
+                    ? UiText.T("Den här containern saknar en tillgänglig lokal projektmapp. Docker Compose-projekt kan öppnas när containerns metadata anger en Windows-mapp som finns på datorn.")
+                    : UiText.T("Processens projektmapp kunde inte läsas eller finns inte längre. Uppdatera portlistan och försök igen."));
                 return;
             }
             OpenDirectory(directory, group.Name, target == ProjectTarget.Editor);
@@ -146,7 +146,7 @@ public partial class MainWindow
         {
             var chosen = CurrentEditor;
             if (editor) ProjectOpener.OpenEditor(directory, chosen); else ProjectOpener.OpenTerminal(directory);
-            SetStatus((editor ? "Öppnade " + chosen.Name + " för " : "Öppnade terminal för ") + name + ".");
+            SetStatus((editor ? UiText.T("Öppnade ") + chosen.Name + UiText.T(" för ") : UiText.T("Öppnade terminal för ")) + name + ".");
         }
         catch (Exception ex) { Error(ex); }
     }
@@ -263,7 +263,7 @@ public partial class MainWindow
         var launchRow = RowVisuals<Border>(LaunchList).Single(border => ReferenceEquals(border.DataContext, idle) && border.ContextMenu is not null);
         var body = RowVisuals<StackPanel>(launchRow).Single(panel => panel.Name == "LaunchBody");
         var action = RowVisuals<Button>(launchRow).Single(button => button.Name == "LaunchAction");
-        check(body.Opacity < 1 && action.IsEnabled && action.ActualWidth == 36 && RowVisuals<System.Windows.Shapes.Path>(action).Single().IsVisible
+        check(body.Opacity < 1 && action.IsEnabled && action.ActualWidth == 28 && RowVisuals<System.Windows.Shapes.Path>(action).Single().IsVisible
             && Math.Abs(launchRow.ActualHeight - RowVisuals<Border>(DensePortList).First(border => border.ContextMenu is not null).ActualHeight) <= 0.5,
             "An idle quick start row is dimmed, matches the port row height and offers a play button");
         var launchMenu = launchRow.ContextMenu; launchMenu.PlacementTarget = launchRow; launchMenu.GetBindingExpression(DataContextProperty)?.UpdateTarget();

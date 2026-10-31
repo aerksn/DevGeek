@@ -34,8 +34,8 @@ public sealed class LaunchSession : IDisposable
     public static void Validate(QuickStart entry)
     {
         var directory = Environment.ExpandEnvironmentVariables(entry.Directory.Trim());
-        if (!Path.IsPathFullyQualified(directory) || !Directory.Exists(directory)) throw new DirectoryNotFoundException("Arbetsmappen finns inte. Redigera snabbstarten och välj en befintlig, absolut sökväg.");
-        if (string.IsNullOrWhiteSpace(entry.Command) || entry.Command.IndexOfAny(['\r', '\n', '\0']) >= 0) throw new ArgumentException("Ange ett kommando på en rad.");
+        if (!Path.IsPathFullyQualified(directory) || !Directory.Exists(directory)) throw new DirectoryNotFoundException(UiText.T("Arbetsmappen finns inte. Redigera snabbstarten och välj en befintlig, absolut sökväg."));
+        if (string.IsNullOrWhiteSpace(entry.Command) || entry.Command.IndexOfAny(['\r', '\n', '\0']) >= 0) throw new ArgumentException(UiText.T("Ange ett kommando på en rad."));
     }
 
     public static LaunchSession Start(QuickStart entry, string logDirectory, Action<LaunchRecord>? beforeResume = null)
@@ -81,7 +81,7 @@ public sealed class LaunchSession : IDisposable
         if (!job.IsInvalid) return new(job, null, record, restored: true);
         var error = Marshal.GetLastWin32Error(); job.Dispose();
         if (error == 2) return new(null, null, record, restored: true); // Previous run finished; keep its log.
-        throw new Win32Exception(error, "Kunde inte återansluta snabbstarten. Ingen ny körning har startats.");
+        throw new Win32Exception(error, UiText.T("Kunde inte återansluta snabbstarten. Ingen ny körning har startats."));
     }
 
     // The kernel keeps the job alive for its processes, but removes its NAME when the last handle closes.
@@ -121,7 +121,7 @@ public sealed class LaunchSession : IDisposable
         var watch = System.Diagnostics.Stopwatch.StartNew();
         while (IsRunning)
         {
-            if (watch.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Processerna har inte avslutats ännu. Ingen ny körning har startats.");
+            if (watch.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException(UiText.T("Processerna har inte avslutats ännu. Ingen ny körning har startats."));
             await Task.Delay(50);
         }
     }

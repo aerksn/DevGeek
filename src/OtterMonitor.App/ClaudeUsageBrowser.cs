@@ -17,7 +17,7 @@ namespace OtterMonitor.App;
 internal sealed class ClaudeUsageBrowser : IDisposable
 {
     private readonly Window window = new() { Title = "Otter Monitor · Claude usage", Width = 1000, Height = 760, MinWidth = 720, MinHeight = 500, WindowStartupLocation = WindowStartupLocation.CenterScreen };
-    private readonly TextBlock status = new() { Text = "Logga in med samma Claude-konto som i appen.", Margin = new Thickness(12, 4, 12, 4), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
+    private readonly TextBlock status = new() { Text = UiText.T("Logga in med samma Claude-konto som i appen."), Margin = new Thickness(12, 4, 12, 4), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock address = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly DispatcherTimer observeTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -39,15 +39,15 @@ internal sealed class ClaudeUsageBrowser : IDisposable
     private ClaudeUsageBrowser(string directory, Action<ClaudePageUsage> receive, Action<string?> error, Action disconnect, bool fixture)
     {
         this.directory = directory; this.receive = receive; this.error = error; this.fixture = fixture; session = new(directory, claude: true);
-        using var resource = typeof(ClaudeUsageBrowser).Assembly.GetManifestResourceStream("OtterMonitor.ClaudeUsageReader.js") ?? throw new IOException("Claude-läsaren saknas.");
+        using var resource = typeof(ClaudeUsageBrowser).Assembly.GetManifestResourceStream("OtterMonitor.ClaudeUsageReader.js") ?? throw new IOException(UiText.T("Claude-läsaren saknas."));
         using var text = new StreamReader(resource); reader = text.ReadToEnd();
         var layout = new DockPanel();
         var top = new DockPanel { Height = 48, Margin = new Thickness(10, 0, 10, 0) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        Add("Till användning", () => controller?.CoreWebView2.Navigate(ClaudePageUsage.Url));
-        Add("Uppdatera", () => { _ = RefreshAsync(manual: true); });
-        Add("Koppla från", () => { ForgetSession(); controller?.CoreWebView2.CookieManager.DeleteAllCookies(); disconnect(); Dispose(); });
-        Add("Dölj", () => window.Hide());
+        Add(UiText.T("Till användning"), () => controller?.CoreWebView2.Navigate(ClaudePageUsage.Url));
+        Add(UiText.T("Uppdatera"), () => { _ = RefreshAsync(manual: true); });
+        Add(UiText.T("Koppla från"), () => { ForgetSession(); controller?.CoreWebView2.CookieManager.DeleteAllCookies(); disconnect(); Dispose(); });
+        Add(UiText.T("Dölj"), () => window.Hide());
         DockPanel.SetDock(buttons, Dock.Right); top.Children.Add(buttons); top.Children.Add(address);
         DockPanel.SetDock(top, Dock.Top); layout.Children.Add(top);
         DockPanel.SetDock(status, Dock.Bottom); layout.Children.Add(status); window.Content = layout;
@@ -81,7 +81,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
             core.Settings.IsPasswordAutosaveEnabled = false; core.Settings.IsGeneralAutofillEnabled = false; core.Settings.IsWebMessageEnabled = false;
             try { await session.RestoreAsync(core.CookieManager, () => !disposed); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or JsonException or COMException or TimeoutException)
-            { sessionError = "Claude-inloggningen kunde inte återställas. Logga in igen här."; }
+            { sessionError = UiText.T("Claude-inloggningen kunde inte återställas. Logga in igen här."); }
             if (disposed) return;
             core.NavigationStarting += (_, args) =>
             {
@@ -112,10 +112,10 @@ internal sealed class ClaudeUsageBrowser : IDisposable
             };
             core.PermissionRequested += (_, args) => args.State = CoreWebView2PermissionState.Deny;
             core.DownloadStarting += (_, args) => args.Cancel = true;
-            core.ProcessFailed += (_, _) => { if (!disposed) { Publish(new("unreadable", null)); error("Claude-läsaren avbröts. Koppla från och anslut igen."); } };
+            core.ProcessFailed += (_, _) => { if (!disposed) { Publish(new("unreadable", null)); error(UiText.T("Claude-läsaren avbröts. Koppla från och anslut igen.")); } };
             if (!fixture) { core.Navigate(ClaudePageUsage.Url); observeTimer.Start(); refreshTimer.Start(); }
         }
-        catch { error("Claude-läsaren kunde inte startas. Kontrollera WebView2 Runtime och försök igen."); throw; }
+        catch { error(UiText.T("Claude-läsaren kunde inte startas. Kontrollera WebView2 Runtime och försök igen.")); throw; }
     }
     public async Task ShowAsync()
     {
@@ -155,10 +155,10 @@ internal sealed class ClaudeUsageBrowser : IDisposable
         if (disposed) return;
         status.Text = value.State switch
         {
-            "ok" => $"Kvot avläst {DateTime.Now:HH:mm:ss}. Dölj fönstret för uppdatering varje minut medan Claude-appen körs.",
-            "login_required" => "Logga in med samma Claude-konto som i appen. Sessionen sparas för nästa appstart.",
-            "paused" => "Välj Till användning för att läsa kontots kvot.",
-            _ => "Kvoten kunde inte läsas. Kontrollera inloggningen och att användningssidan har laddats."
+            "ok" => UiText.F("Kvot avl\u00E4st {0:HH:mm:ss}. D\u00F6lj f\u00F6nstret f\u00F6r uppdatering varje minut medan Claude-appen k\u00F6rs.", DateTime.Now),
+            "login_required" => UiText.T("Logga in med samma Claude-konto som i appen. Sessionen sparas för nästa appstart."),
+            "paused" => UiText.T("Välj Till användning för att läsa kontots kvot."),
+            _ => UiText.T("Kvoten kunde inte läsas. Kontrollera inloggningen och att användningssidan har laddats.")
         };
         receive(value); error(sessionError);
     }
@@ -184,7 +184,7 @@ internal sealed class ClaudeUsageBrowser : IDisposable
                 session.Save(cookies, DateTime.UtcNow); sessionError = null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or JsonException or COMException or TimeoutException)
-            { sessionError = "Claude-inloggningen kunde inte sparas. Du kan behöva logga in igen nästa gång."; }
+            { sessionError = UiText.T("Claude-inloggningen kunde inte sparas. Du kan behöva logga in igen nästa gång."); }
         }
     }
     private void HideOnClose(object? sender, CancelEventArgs e) { if (!disposed) { e.Cancel = true; window.Hide(); } }

@@ -29,6 +29,31 @@ internal static class BalanceTests
             await throws(() => { store.Apply(new(1, "ok", "24.50", "USD"), DateTime.UtcNow); return Task.CompletedTask; });
             check(File.ReadAllText(store.FilePath) == "broken-json", "Corrupt state overwritten.");
         });
+        await test("JEV and OpenAI balances stay separate and JEV errors never invent a new amount", () =>
+        {
+            var directory = Path.Combine(root, "jev-balance-isolation");
+            var openai = new BalanceStore(directory); var jev = new BalanceStore(directory, jev: true); var now = DateTime.UtcNow;
+            openai.Apply(new(1, "ok", "73.21", "USD"), now);
+            var balance = jev.Apply(new(1, "ok", "5.00", "USD"), now);
+            check(balance.Label(now, "JEV") == "JEV · $5.00" && balance.Hint(now, "JEV").Contains("Available credits"), "JEV label/source incorrect.");
+            var failed = jev.Apply(new(1, "login_required"), now.AddMinutes(1));
+            check(openai.Read()!.Amount == 73.21m && failed.Amount == 5m && failed.ObservedUtc == now && failed.Label(now, "JEV").Contains("äldre"), "JEV changed another account or renewed an old balance.");
+            check(new BalanceSnapshot(null, null, now, "login_required").Label(now, "JEV") == "JEV · logga in", "Missing JEV balance became zero.");
+            return Task.CompletedTask;
+        });
+        await test("JEV navigation confines reads and automatic refreshes to TypeSafe Billing", () =>
+        {
+            var url = JevBillingNavigation.OverviewUrl;
+            check(JevBillingNavigation.IsOverview(url + "/?x=1") && JevBillingNavigation.IsHome("https://console.typesafe.ai/home"), "JEV routes rejected.");
+            foreach (var other in new[] { "http://console.typesafe.ai/settings/billing", "https://console.typesafe.ai:8443/settings/billing", "https://console.typesafe.ai.evil.test/settings/billing", "https://console.typesafe.ai/usage", "https://console.typesafe.ai/settings/billing/history" })
+                check(!JevBillingNavigation.IsOverview(other), "Unrelated JEV route accepted.");
+            check(JevBillingNavigation.StateFor("https://console.typesafe.ai/login?returnTo=/settings/billing") == "login_required"
+                && JevBillingNavigation.StateFor("https://console.typesafe.ai/keys") == "paused", "JEV login state incorrect.");
+            check(JevBillingNavigation.CanAutoRefresh(url, false, false, false) && JevBillingNavigation.CanAutoRefresh(url, true, true, false)
+                && !JevBillingNavigation.CanAutoRefresh(url, true, false, false) && !JevBillingNavigation.CanAutoRefresh(url, false, false, true)
+                && !JevBillingNavigation.CanAutoRefresh("https://console.typesafe.ai/login", false, false, false), "JEV refresh interrupts login/visible navigation.");
+            return Task.CompletedTask;
+        });
         await test("Background navigation only reads OpenAI Billing and distinguishes sign-in from other pages", () =>
         {
             check(BillingNavigation.IsOverview(BillingNavigation.OverviewUrl + "?fixture=1") && BillingNavigation.IsOverview("https://platform.openai.com/account/billing/"), "Overview route rejected.");
@@ -48,10 +73,11 @@ internal static class BalanceTests
                 var command = new QuickStart { Name = "Saved project", Directory = @"C:\repos\example", Command = "bun run dev" };
                 File.WriteAllText(store.FilePath, JsonSerializer.Serialize(new { Version = 1, OpenAiBalanceEnabled = enabled, OpenAiBackgroundEnabled = !enabled, QuickStarts = new[] { command } }));
                 var settings = store.Load();
-                check(settings.OpenAiBalanceEnabled == enabled && settings.QuickStarts.Single().Id == command.Id, "Old mode changed opt-in or existing commands.");
+                check(settings.OpenAiBalanceEnabled == enabled && !settings.JevBalanceEnabled && settings.QuickStarts.Single().Id == command.Id, "Old mode changed opt-in or existing commands.");
+                settings.JevBalanceEnabled = true;
                 store.Save(settings);
                 using var saved = JsonDocument.Parse(File.ReadAllText(store.FilePath));
-                check(!saved.RootElement.TryGetProperty("OpenAiBackgroundEnabled", out _) && store.Load().QuickStarts.Single().Command == command.Command, "Retired mode persisted or saved commands changed.");
+                check(!saved.RootElement.TryGetProperty("OpenAiBackgroundEnabled", out _) && store.Load().JevBalanceEnabled && store.Load().QuickStarts.Single().Command == command.Command, "JEV opt-in/commands lost or retired mode persisted.");
             }
             return Task.CompletedTask;
         });

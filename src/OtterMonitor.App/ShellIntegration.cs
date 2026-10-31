@@ -46,7 +46,7 @@ public partial class MainWindow
     private void ShowTrayMenu()
     {
         trayMenu ??= BuildTrayMenu();
-        ((MenuItem)trayMenu.Items[0]).Header = IsVisible ? "Dölj Otter Monitor" : "Visa Otter Monitor";
+        ((MenuItem)trayMenu.Items[0]).Header = IsVisible ? UiText.T("Dölj Otter Monitor") : UiText.T("Visa Otter Monitor");
         trayMenu.Placement = PlacementMode.MousePoint; trayMenu.IsOpen = true;
     }
 
@@ -54,8 +54,8 @@ public partial class MainWindow
     {
         var menu = new ContextMenu { Template = (ControlTemplate)FindResource("AppearanceMenuTemplate"), FontSize = 11, Foreground = (Brush)FindResource("TextBrush") };
         var toggle = new MenuItem(); toggle.Click += (_, _) => { if (IsVisible) Hide(); else ShowFromTray(); };
-        var add = new MenuItem { Header = "Ny snabbstart…" }; add.Click += (_, _) => { ShowFromTray(); Add_Click(this, new()); };
-        var exit = new MenuItem { Header = "Avsluta Otter Monitor" }; exit.Click += (_, _) => ExitApplication();
+        var add = new MenuItem { Header = UiText.T("Ny snabbstart…") }; add.Click += (_, _) => { ShowFromTray(); Add_Click(this, new()); };
+        var exit = new MenuItem { Header = UiText.T("Avsluta Otter Monitor") }; exit.Click += (_, _) => ExitApplication();
         foreach (var item in new[] { toggle, add, exit }) { item.Style = (Style)FindResource("AppearanceMenuItem"); menu.Items.Add(item); }
         menu.Items.Insert(2, new Separator { Style = (Style)FindResource("MenuSeparator") });
         return menu;
@@ -100,7 +100,7 @@ public partial class MainWindow
         if (!trayHintShown)
         {
             trayHintShown = true;
-            tray.Show(new("Otter Monitor körs vidare", (tray.Hotkey is { } key ? key + " eller klick på ikonen" : "Klick på ikonen") + " visar fönstret. Avsluta via ⌄-menyn eller högerklick på ikonen.", NoticeKind.Info));
+            tray.Show(new(UiText.T("Otter Monitor körs vidare"), (tray.Hotkey is { } key ? key + UiText.T(" eller klick på ikonen") : UiText.T("Klick på ikonen")) + UiText.T(" visar fönstret. Avsluta via ⌄-menyn eller högerklick på ikonen."), NoticeKind.Info));
         }
         return true;
     }
@@ -141,9 +141,9 @@ public partial class MainWindow
         var failing = groupCache.Values.Where(group => group.StatusTone == ServiceTone.Bad).Select(group => group.Name)
             .Concat(QuickStarts.Where(entry => entry.HasFailed).Select(entry => entry.Name)).Distinct().ToList();
         var services = groupCache.Values.Count(group => !developmentOnly || group.IsDevelopment);
-        var tip = $"Otter Monitor · {services} {(services == 1 ? "tjänst" : "tjänster")}"
-            + (failing.Count > 0 ? " · fel: " + string.Join(", ", failing) : "")
-            + (tray.Hotkey is { } key ? "\n" + key + " visar och döljer" : "");
+        var tip = $"Otter Monitor · {services} {(services == 1 ? UiText.T("tjänst") : UiText.T("tjänster"))}"
+            + (failing.Count > 0 ? UiText.T(" · fel: ") + string.Join(", ", failing) : "")
+            + (tray.Hotkey is { } key ? "\n" + key + UiText.T(" visar och döljer") : "");
         tray.Update(failing.Count > 0, tip);
     }
 

@@ -59,12 +59,12 @@ public static class ProjectOpener
 
     public static void OpenEditor(string directory, Editor editor)
     {
-        var executable = editor.Find() ?? throw new InvalidOperationException($"{editor.Name} hittades inte. Installera {editor.Name} eller välj en annan editor under ⌄ → Editor.");
+        var executable = editor.Find() ?? throw new InvalidOperationException(UiText.F("{0} hittades inte. Installera {1} eller v\u00E4lj en annan editor under \u2304 \u2192 Inst\u00E4llningar \u2192 Allm\u00E4nt.", editor.Name, editor.Name));
         using var process = Process.Start(EditorStart(directory, executable));
     }
 
     private static string RequireDirectory(string directory) => LocalDirectory(directory)
-        ?? throw new DirectoryNotFoundException("Projektmappen finns inte längre eller är inte en lokal Windows-mapp.");
+        ?? throw new DirectoryNotFoundException(UiText.T("Projektmappen finns inte längre eller är inte en lokal Windows-mapp."));
 
     internal static string? FindExecutable(string name, params string[] knownPaths)
     {

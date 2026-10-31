@@ -13,7 +13,7 @@ public sealed class PortGroup : Observable
     public string Name => entries[0].DisplayName;
     public string ServiceIcon => IsDocker ? "docker" : entries[0].Kind.ToLowerInvariant() switch { "node" => "node", "bun" => "bun", ".net" => "dotnet", "python" => "python", _ => "tcp" };
     public string ServiceLabel => IsDocker ? "Docker" : entries[0].Kind;
-    public string StatusText => DateTime.UtcNow - probe.SampledUtc > TimeSpan.FromSeconds(30) ? "Äldre" : probe.Text;
+    public string StatusText => DateTime.UtcNow - probe.SampledUtc > TimeSpan.FromSeconds(30) ? UiText.T("Äldre") : probe.Text;
     public ServiceTone StatusTone => DateTime.UtcNow - probe.SampledUtc > TimeSpan.FromSeconds(30) ? ServiceTone.Neutral : probe.Tone;
     public string ResourceSummary => $"RAM {resources?.MemoryText ?? "—"}  ·  CPU {resources?.CpuText ?? "—"}  ·  ↑ {resources?.Uptime(DateTime.UtcNow) ?? new ResourceReading(null, null, entries[0].StartedUtc, DateTime.UtcNow).Uptime(DateTime.UtcNow)}";
     public void SetResources(ResourceReading? value) { resources = value; RefreshTelemetry(); }
@@ -28,10 +28,10 @@ public sealed class PortGroup : Observable
     /// <summary>The quick start whose Windows job owns this process; set only from verified job membership.</summary>
     public QuickStart? Launch { get => launch; set { if (ReferenceEquals(launch, value)) return; launch = value; Changed(); Changed(nameof(IsLaunch)); Changed(nameof(LaunchHint)); Changed(nameof(CanRestart)); Changed(nameof(CanShowLog)); Changed(nameof(Hint)); } }
     public bool IsLaunch => launch is not null;
-    public string LaunchHint => launch is null ? "" : "Startad av snabbstarten " + launch.Name;
+    public string LaunchHint => launch is null ? "" : UiText.T("Startad av snabbstarten ") + launch.Name;
     public bool CanShowLog => IsDocker || launch is not null;
     public bool CanBrowse => entries.Any(WebServiceOpener.IsCandidate);
-    public string CopyIdLabel => IsDocker ? "Kopiera container-ID" : "Kopiera PID";
+    public string CopyIdLabel => IsDocker ? UiText.T("Kopiera container-ID") : UiText.T("Kopiera PID");
     public string CopyId => IsDocker ? entries[0].ContainerId ?? "" : entries[0].Pid.ToString();
     /// <summary>The verified web address when known; otherwise the first TCP port, written as a URL only for web runtimes.</summary>
     public string Address => BrowserUrl?.ToString() ?? (CanBrowse ? "http://localhost:" : "localhost:") + (entries.FirstOrDefault(p => p.Protocol == "tcp") ?? entries[0]).Port;
@@ -51,14 +51,14 @@ public sealed class PortGroup : Observable
         }
     }
     public string Hint => (launch is null ? "" : LaunchHint + "\n") + entries[0].Hint + "\n" + Description + "\n\n" + probe.Hint + "\n" + ResourceSummary
-        + (IsDocker ? "\nCPU och RAM enligt docker stats. CPU kan överstiga 100 % när flera kärnor används."
-            : "\nRAM är processens arbetsminne. CPU är andelen av datorns totala logiska processorkapacitet. Gäller portens ägarprocess.")
-        + "\nKörtid räknas från processens eller containerns start. — betyder att ett värde inte är tillgängligt ännu."
-        + (IsDocker && entries[0].ProjectDirectory is { } directory ? "\nProjektmapp: " + directory : "")
+        + (IsDocker ? UiText.T("\nCPU och RAM enligt docker stats. CPU kan överstiga 100 % när flera kärnor används.")
+            : UiText.T("\nRAM är processens arbetsminne. CPU är andelen av datorns totala logiska processorkapacitet. Gäller portens ägarprocess."))
+        + UiText.T("\nKörtid räknas från processens eller containerns start. — betyder att ett värde inte är tillgängligt ännu.")
+        + (IsDocker && entries[0].ProjectDirectory is { } directory ? UiText.T("\nProjektmapp: ") + directory : "")
         + (entries.Any(WebServiceOpener.IsCandidate)
-            ? "\n\nDubbelklick eller Enter: öppna webbporten i standardwebbläsaren om HTTP svarar; annars terminal."
-            : "\n\nDubbelklick eller Enter: terminal i projektmappen.")
-        + "\nHåll musen över raden för snabbknappar. Högerklick för fler val.";
+            ? UiText.T("\n\nDubbelklick eller Enter: öppna webbporten i standardwebbläsaren om HTTP svarar; annars terminal.")
+            : UiText.T("\n\nDubbelklick eller Enter: terminal i projektmappen."))
+        + UiText.T("\nHåll musen över raden för snabbknappar. Högerklick för fler val.");
 
     private PortGroup(List<PortEntry> entries) { this.entries = entries; Key = OwnerKey(entries[0]); }
 
@@ -73,7 +73,7 @@ public sealed class PortGroup : Observable
 
     public void Update(PortGroup current)
     {
-        if (current.Key != Key) throw new InvalidOperationException("Gruppens process eller container får inte bytas ut.");
+        if (current.Key != Key) throw new InvalidOperationException(UiText.T("Gruppens process eller container får inte bytas ut."));
         if (entries.SequenceEqual(current.entries)) return;
         entries = current.entries;
         Changed(null);

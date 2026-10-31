@@ -16,7 +16,7 @@ public sealed class CodexUsageClient
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
             WorkingDirectory = Path.GetDirectoryName(executable)! };
         start.ArgumentList.Add("app-server"); start.ArgumentList.Add("--listen"); start.ArgumentList.Add("stdio://");
-        using var process = Process.Start(start) ?? throw new IOException("Codex kunde inte starta kvotläsaren.");
+        using var process = Process.Start(start) ?? throw new IOException(UiText.T("Codex kunde inte starta kvotläsaren."));
         HelperPid = process.Id;
         // Drain diagnostics without storing messages, paths, or authentication data.
         var diagnostics = process.StandardError.BaseStream.CopyToAsync(Stream.Null);
@@ -53,14 +53,14 @@ public sealed class CodexUsageClient
     {
         for (var count = 0; count < 100; count++)
         {
-            var line = await process.StandardOutput.ReadLineAsync(token) ?? throw new IOException("Codex-kopplingen stängdes.");
-            if (line.Length > 1_000_000) throw new IOException("Oväntat kvotsvar från Codex.");
+            var line = await process.StandardOutput.ReadLineAsync(token) ?? throw new IOException(UiText.T("Codex-kopplingen stängdes."));
+            if (line.Length > 1_000_000) throw new IOException(UiText.T("Oväntat kvotsvar från Codex."));
             using var document = JsonDocument.Parse(line);
             var message = document.RootElement;
             if (!message.TryGetProperty("id", out var responseId) || !responseId.TryGetInt32(out var value) || value != id) continue;
-            if (message.TryGetProperty("error", out _)) throw new IOException("Codex kunde inte läsa kvoten. Kontrollera inloggningen i Codex.");
+            if (message.TryGetProperty("error", out _)) throw new IOException(UiText.T("Codex kunde inte läsa kvoten. Kontrollera inloggningen i Codex."));
             return message.GetProperty("result").Clone();
         }
-        throw new IOException("Codex skickade inget kvotsvar.");
+        throw new IOException(UiText.T("Codex skickade inget kvotsvar."));
     }
 }

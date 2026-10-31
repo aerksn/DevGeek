@@ -21,7 +21,7 @@ public static class WebServiceOpener
 
     public static ProcessStartInfo BrowserStart(Uri uri)
     {
-        if (!IsLocalWebUrl(uri)) throw new InvalidOperationException("Ingen verifierad lokal webbadress är vald.");
+        if (!IsLocalWebUrl(uri)) throw new InvalidOperationException(UiText.T("Ingen verifierad lokal webbadress är vald."));
         return new(uri.AbsoluteUri) { UseShellExecute = true };
     }
 

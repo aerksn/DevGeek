@@ -28,11 +28,11 @@ public sealed class NoticeTracker
             state.WasGood = true;
             if (!state.Alerted) return null;
             state.Alerted = false;
-            return new(name + " svarar igen", label, NoticeKind.Info);
+            return new(name + UiText.T(" svarar igen"), label, NoticeKind.Info);
         }
         if (++state.BadReadings < 2 || !state.WasGood || state.Alerted) return null;
         state.Alerted = true;
-        return new(name + " · " + label, "Tjänsten svarade tidigare men gör det inte längre. Öppna Otter Monitor för detaljer.", NoticeKind.Error);
+        return new(name + " · " + label, UiText.T("Tjänsten svarade tidigare men gör det inte längre. Öppna Otter Monitor för detaljer."), NoticeKind.Error);
     }
 
     /// <summary>Drops services that no longer exist, so a new process on the same port starts fresh.</summary>
@@ -50,8 +50,8 @@ public sealed class NoticeTracker
         launches[id] = (run, running);
         if (!seen || previous.RunId != run || !previous.Running || running || stoppedByUser || exitCode == 0) return null;
         return exitCode is { } code
-            ? new(name + " misslyckades", $"Kommandot avslutades med kod {code}. Öppna loggen för utdata.", NoticeKind.Error)
-            : new(name + " har avslutats", "Kommandot är inte längre igång. Öppna loggen för utdata.", NoticeKind.Warning);
+            ? new(name + UiText.T(" misslyckades"), UiText.F("Kommandot avslutades med kod {0}. \u00D6ppna loggen f\u00F6r utdata.", code), NoticeKind.Error)
+            : new(name + UiText.T(" har avslutats"), UiText.T("Kommandot är inte längre igång. Öppna loggen för utdata."), NoticeKind.Warning);
     }
 
     /// <summary>Notifies when a quota window drops to <see cref="LowQuota"/> % or lower, and when it is refilled after having been low.</summary>
@@ -70,9 +70,9 @@ public sealed class NoticeTracker
             if (!known) continue;
             var percent = remaining.ToString("0.#", CultureInfo.InvariantCulture) + " %";
             if (previous > LowQuota && remaining <= LowQuota)
-                yield return new($"{assistant} · {percent} kvar ({label})", window.ResetsAt is { } reset ? $"Återställs {reset.ToLocalTime():ddd HH:mm}." : "Återställningstid saknas.", NoticeKind.Warning);
+                yield return new($"{assistant} · {percent} kvar ({label})", window.ResetsAt is { } reset ? UiText.F("\u00C5terst\u00E4lls {0:ddd HH:mm}.", reset.ToLocalTime()) : UiText.T("Återställningstid saknas."), NoticeKind.Warning);
             else if (previous <= LowQuota && remaining >= 50)
-                yield return new($"{assistant}-kvoten har återställts ({label})", $"{percent} kvar.", NoticeKind.Info);
+                yield return new(UiText.F("{0}-kvoten har \u00E5terst\u00E4llts ({1})", assistant, label), $"{percent} kvar.", NoticeKind.Info);
         }
     }
 }

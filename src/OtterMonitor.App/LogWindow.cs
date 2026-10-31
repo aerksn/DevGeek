@@ -44,7 +44,7 @@ public sealed class LogWindow : Window
         this.read = read;
         Style = (Style)FindResource(typeof(Window));
         _ = new WindowMaterial(this);
-        Title = title + " · Logg"; Width = 820; Height = 540; MinWidth = 520; MinHeight = 300; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = title + UiText.T(" · Logg"); Width = 820; Height = 540; MinWidth = 520; MinHeight = 300; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var muted = (Brush)FindResource("MutedBrush");
         var root = new Grid { Margin = new Thickness(20, 16, 20, 12) };
         foreach (var height in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto }) root.RowDefinitions.Add(new() { Height = height });
@@ -63,9 +63,9 @@ public sealed class LogWindow : Window
         // Toolbar: filter on the left, actions on the right.
         var toolbar = new DockPanel { Margin = new Thickness(0, 14, 0, 10) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        followButton = Tool("", "Följ", "Följ slutet av loggen (End)"); followButton.Click += (_, _) => SetFollowing(!following, scrollNow: true);
-        copyButton = Tool("", "Kopiera", "Kopiera markerade rader, annars alla som visas (Ctrl+C)"); copyButton.Click += (_, _) => Copy();
-        folderButton = Tool("", "Visa fil", "Visa loggfilen i Utforskaren"); folderButton.Click += (_, _) => RevealFile();
+        followButton = Tool("", UiText.T("Följ"), UiText.T("Följ slutet av loggen (End)")); followButton.Click += (_, _) => SetFollowing(!following, scrollNow: true);
+        copyButton = Tool("", UiText.T("Kopiera"), UiText.T("Kopiera markerade rader, annars alla som visas (Ctrl+C)")); copyButton.Click += (_, _) => Copy();
+        folderButton = Tool("", UiText.T("Visa fil"), UiText.T("Visa loggfilen i Utforskaren")); folderButton.Click += (_, _) => RevealFile();
         foreach (var button in new[] { followButton, copyButton, folderButton }) buttons.Children.Add(button);
         var runActions = (actions ?? []).Select(action =>
         {
@@ -78,12 +78,12 @@ public sealed class LogWindow : Window
         foreach (var (button, _) in runActions) buttons.Children.Add(button);
         refreshActions = () => { foreach (var (button, enabled) in runActions) button.IsEnabled = enabled(); };
         DockPanel.SetDock(buttons, Dock.Right); toolbar.Children.Add(buttons);
-        var hint = new TextBlock { Text = "Filtrera rader…  (Ctrl+F)", Foreground = muted, FontSize = 11, Margin = new Thickness(30, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+        var hint = new TextBlock { Text = UiText.T("Filtrera rader…  (Ctrl+F)"), Foreground = muted, FontSize = 11, Margin = new Thickness(30, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
         var glyph = new TextBlock { Text = "", FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 11, Foreground = muted, Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
         filter.Padding = new Thickness(28, 6, 10, 6); filter.FontSize = 11; filter.MaxWidth = 300; filter.HorizontalAlignment = HorizontalAlignment.Left; filter.MinWidth = 200;
         filter.TextChanged += (_, _) => { hint.Visibility = filter.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed; ApplyFilter(); };
         filter.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && filter.Text.Length > 0) { filter.Text = ""; e.Handled = true; } };
-        AutomationProperties.SetName(filter, "Filtrera loggrader");
+        AutomationProperties.SetName(filter, UiText.T("Filtrera loggrader"));
         toolbar.Children.Add(new Grid { HorizontalAlignment = HorizontalAlignment.Left, Children = { filter, glyph, hint } });
         Grid.SetRow(toolbar, 1); root.Children.Add(toolbar);
 
@@ -92,7 +92,7 @@ public sealed class LogWindow : Window
         AutomationProperties.SetName(list, "Loggrader");
         list.CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, (_, _) => Copy()));
         empty.Foreground = muted;
-        toEnd.Content = "↓  Till slutet"; toEnd.Style = (Style)FindResource("PrimaryButton"); toEnd.Padding = new Thickness(12, 6, 12, 6); toEnd.FontSize = 11;
+        toEnd.Content = UiText.T("↓  Till slutet"); toEnd.Style = (Style)FindResource("PrimaryButton"); toEnd.Padding = new Thickness(12, 6, 12, 6); toEnd.FontSize = 11;
         toEnd.HorizontalAlignment = HorizontalAlignment.Right; toEnd.VerticalAlignment = VerticalAlignment.Bottom; toEnd.Margin = new Thickness(0, 0, 18, 12); toEnd.Visibility = Visibility.Collapsed;
         toEnd.Click += (_, _) => SetFollowing(true, scrollNow: true);
         var body = new Grid { Children = { list, empty, toEnd } };
@@ -146,12 +146,12 @@ public sealed class LogWindow : Window
             folderButton.Visibility = filePath is null ? Visibility.Collapsed : Visibility.Visible;
             refreshActions?.Invoke();
             Update(snapshot.Text);
-            footer.Text = $"{lines.Count} {(lines.Count == 1 ? "rad" : "rader")}" + (truncated ? " · senaste 64 kB" : "") + " · " + snapshot.Source;
+            footer.Text = $"{lines.Count} {(lines.Count == 1 ? "rad" : UiText.T("rader"))}" + (truncated ? " · senaste 64 kB" : "") + " · " + snapshot.Source;
             footer.ToolTip = filePath ?? snapshot.Source;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException)
         {
-            statusText.Text = "Kan inte läsa loggen"; statusDot.Foreground = (Brush)FindResource("RoseBrush");
+            statusText.Text = UiText.T("Kan inte läsa loggen"); statusDot.Foreground = (Brush)FindResource("RoseBrush");
             footer.Text = ex.Message;
         }
         finally { reading = false; }
@@ -184,7 +184,7 @@ public sealed class LogWindow : Window
     private void UpdateEmpty()
     {
         var visible = view?.Cast<object>().Any() == true;
-        empty.Text = lines.Count == 0 ? "Ingen utdata ännu." : visible ? "" : $"Inga rader matchar ”{filter.Text.Trim()}”.";
+        empty.Text = lines.Count == 0 ? UiText.T("Ingen utdata ännu.") : visible ? "" : UiText.F("Inga rader matchar \u201D{0}\u201D.", filter.Text.Trim());
         empty.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -225,7 +225,7 @@ public sealed class LogWindow : Window
         if (text.Length == 0) return;
         try { Clipboard.SetDataObject(text, true); }
         catch (System.Runtime.InteropServices.ExternalException) { Flash(copyButton, "Upptaget"); return; }
-        Flash(copyButton, list.SelectedItems.Count > 0 ? $"Kopierade {list.SelectedItems.Count}" : "Kopierat");
+        Flash(copyButton, list.SelectedItems.Count > 0 ? UiText.F("Kopierade {0}", list.SelectedItems.Count) : UiText.T("Kopierat"));
     }
 
     private static void Flash(Button button, string text)
@@ -252,11 +252,11 @@ public sealed class LogWindow : Window
             var session = entry.Session;
             return Task.FromResult(new LogSnapshot(session?.ReadLog() ?? "", entry.Status,
                 entry.HasFailed || entry.RecoveryError is not null ? ServiceTone.Bad : entry.IsRunning ? ServiceTone.Good : ServiceTone.Neutral,
-                session?.LogPath, session is null ? "väntar på nästa körning" : Path.GetFileName(session.LogPath)));
+                session?.LogPath, session is null ? UiText.T("väntar på nästa körning") : Path.GetFileName(session.LogPath)));
         },
         [
-            new("\uE72C", "Starta om", "Avsluta och kör samma kommando igen", () => restart(entry), () => entry.CanRestart),
-            new("\uE71A", "Stoppa", "Stoppa kommandot och alla processer det startade", () => _ = stop(entry), () => entry.IsRunning && !entry.IsBusy, Danger: true),
+            new("\uE72C", UiText.T("Starta om"), UiText.T("Avsluta och kör samma kommando igen"), () => restart(entry), () => entry.CanRestart),
+            new("\uE71A", UiText.T("Stoppa"), UiText.T("Stoppa kommandot och alla processer det startade"), () => _ = stop(entry), () => entry.IsRunning && !entry.IsBusy, Danger: true),
         ]);
 
     public static LogWindow ForContainer(PortEntry container) => new(container.Name, "docker logs " + container.ContainerId, TimeSpan.FromSeconds(2), async () =>
@@ -317,6 +317,6 @@ public sealed class LogWindow : Window
     }
 
     /// <summary>For previews and checks: fixed text and status.</summary>
-    internal static LogWindow ForText(string title, string subtitle, Func<string> text, string status = "Körs", ServiceTone tone = ServiceTone.Good) =>
-        new(title, subtitle, TimeSpan.FromSeconds(1), () => Task.FromResult(new LogSnapshot(text(), status, tone, null, "exempel.log")));
+    internal static LogWindow ForText(string title, string subtitle, Func<string> text, string? status = null, ServiceTone tone = ServiceTone.Good) =>
+        new(title, subtitle, TimeSpan.FromSeconds(1), () => Task.FromResult(new LogSnapshot(text(), status ?? UiText.T("Körs"), tone, null, UiText.T("exempel.log"))));
 }

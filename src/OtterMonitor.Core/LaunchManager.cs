@@ -26,7 +26,7 @@ public sealed class LaunchManager(string directory, bool shadowCopyHost = false,
             // Runs started while the app was called PortPilot keep their job name until they end.
             record.JobName != $"Local\\OtterMonitor.Launch.{entry.Id:N}.{record.RunId:N}" && record.JobName != $"Local\\PortPilot.Launch.{entry.Id:N}.{record.RunId:N}" ||
             !string.Equals(record.LogPath, Path.Combine(LogDirectory, $"{entry.Id:N}-{record.RunId:N}.log"), StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Snabbstartens sparade körning kunde inte läsas. Ingen ny körning har startats.");
+            throw new InvalidDataException(UiText.T("Snabbstartens sparade körning kunde inte läsas. Ingen ny körning har startats."));
         return LaunchSession.Restore(record);
     }
 
@@ -38,11 +38,11 @@ public sealed class LaunchManager(string directory, bool shadowCopyHost = false,
         using var gate = new Mutex(false, $"Local\\OtterMonitor.Start.{key}.{entry.Id:N}");
         bool acquired;
         try { acquired = gate.WaitOne(0); } catch (AbandonedMutexException) { acquired = true; }
-        if (!acquired) throw new InvalidOperationException("Snabbstarten håller redan på att startas.");
+        if (!acquired) throw new InvalidOperationException(UiText.T("Snabbstarten håller redan på att startas."));
         try
         {
             using var existing = Restore(entry);
-            if (existing?.IsRunning == true) throw new InvalidOperationException("Snabbstarten körs redan. Återanslut eller använd Starta om.");
+            if (existing?.IsRunning == true) throw new InvalidOperationException(UiText.T("Snabbstarten körs redan. Återanslut eller använd Starta om."));
             var executable = PrepareHost();
             return LaunchSession.Start(entry, LogDirectory, record => { Save(record); StartHost(executable, record); });
         }
@@ -86,18 +86,18 @@ public sealed class LaunchManager(string directory, bool shadowCopyHost = false,
         using var ready = new EventWaitHandle(false, EventResetMode.ManualReset, eventName);
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
         foreach (var arg in new[] { "--keep-launch", record.JobName, eventName }) start.ArgumentList.Add(arg);
-        using var host = Process.Start(start) ?? throw new InvalidOperationException("Kunde inte bevara snabbstartens processkoppling.");
+        using var host = Process.Start(start) ?? throw new InvalidOperationException(UiText.T("Kunde inte bevara snabbstartens processkoppling."));
         if (!ready.WaitOne(TimeSpan.FromSeconds(10)))
         {
             if (!host.HasExited) host.Kill();
-            throw new TimeoutException("Snabbstartens hjälpprocess svarade inte. Kommandot har inte körts.");
+            throw new TimeoutException(UiText.T("Snabbstartens hjälpprocess svarade inte. Kommandot har inte körts."));
         }
     }
 
     public async Task RestartAsync(QuickStart entry)
     {
         LaunchSession.Validate(entry); // Keep the current run alive when the replacement configuration is invalid.
-        if (entry.Session is not { IsRunning: true } previous) throw new InvalidOperationException("Snabbstarten körs inte längre. Välj Starta.");
+        if (entry.Session is not { IsRunning: true } previous) throw new InvalidOperationException(UiText.T("Snabbstarten körs inte längre. Välj Starta."));
         await previous.StopAsync();
         entry.Session = null;
         previous.Dispose();

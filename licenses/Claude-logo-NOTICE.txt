@@ -1,0 +1,5 @@
+Claude starburst mark
+Source: https://github.com/simple-icons/simple-icons/blob/develop/icons/claude.svg
+Retrieved: 2026-10-31
+Simple Icons distribution: CC0-1.0 (https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md).
+Claude and Anthropic names and marks belong to Anthropic. Use here identifies the connected API provider; it does not imply endorsement.

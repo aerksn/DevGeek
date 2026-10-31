@@ -7,20 +7,22 @@ using Microsoft.Web.WebView2.Core;
 
 namespace OtterMonitor.App;
 
-// Only session cookies from the app's own profile, scoped separately for OpenAI and Claude.
-internal sealed class BillingSessionStore(string directory, bool claude = false)
+// Only session cookies from the app's own profile, scoped separately for OpenAI, Claude and JEV.
+internal sealed class BillingSessionStore(string directory, bool claude = false, bool jev = false, bool anthropic = false)
 {
-    internal string FilePath => Path.Combine(directory, claude ? "claude-session.bin" : "billing-session.bin");
+    internal string FilePath => Path.Combine(directory, anthropic ? "anthropic-session.bin" : jev ? "jev-session.bin" : claude ? "claude-session.bin" : "billing-session.bin");
     internal static readonly TimeSpan MaximumAge = TimeSpan.FromDays(7);
     private const int MaximumBytes = 262144;
     // Keys from when the app was called PortPilot. Renaming them would make every saved login unreadable.
-    private readonly byte[] entropy = Encoding.UTF8.GetBytes(claude ? "PortPilot.ClaudeSession.v1" : "PortPilot.BillingSession.v1");
+    private readonly byte[] entropy = Encoding.UTF8.GetBytes(anthropic ? "OtterMonitor.AnthropicSession.v1" : jev ? "OtterMonitor.JevSession.v1" : claude ? "PortPilot.ClaudeSession.v1" : "PortPilot.BillingSession.v1");
     private static readonly JsonSerializerOptions JsonOptions = new() { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, MaxDepth = 8 };
     internal sealed record Cookie(string Name, string Value, string Domain, string Path, bool IsSecure, bool IsHttpOnly, CoreWebView2CookieSameSiteKind SameSite);
     private sealed record Snapshot(int Version, DateTime SavedUtc, Cookie[] Cookies);
 
     internal static bool IsAllowedDomain(string domain) => domain.TrimStart('.').ToLowerInvariant() is "openai.com" or "platform.openai.com" or "auth.openai.com" or "auth0.openai.com";
-    internal bool IsSessionDomain(string domain) => claude ? domain.TrimStart('.').Equals("claude.ai", StringComparison.OrdinalIgnoreCase) : IsAllowedDomain(domain);
+    internal bool IsSessionDomain(string domain) => anthropic ? domain.TrimStart('.').ToLowerInvariant() is "platform.claude.com" or "claude.com" or "console.anthropic.com" or "anthropic.com"
+        : jev ? domain.TrimStart('.').ToLowerInvariant() is "typesafe.ai" or "console.typesafe.ai"
+        : claude ? domain.TrimStart('.').Equals("claude.ai", StringComparison.OrdinalIgnoreCase) : IsAllowedDomain(domain);
     private bool IsValid(Cookie cookie) => cookie is not null && cookie.Domain is not null && IsSessionDomain(cookie.Domain)
         && !string.IsNullOrWhiteSpace(cookie.Name) && cookie.Name.Length <= 512 && cookie.Value is not null && cookie.Value.Length <= 65536
         && cookie.Path is not null && cookie.Path.StartsWith('/') && cookie.Path.Length <= 2048 && Enum.IsDefined(cookie.SameSite);
@@ -55,7 +57,7 @@ internal sealed class BillingSessionStore(string directory, bool claude = false)
         byte[] encrypted;
         try
         {
-            if (plain.Length > MaximumBytes) throw new InvalidDataException("Sessionsdata är för stor.");
+            if (plain.Length > MaximumBytes) throw new InvalidDataException(UiText.T("Sessionsdata är för stor."));
             encrypted = ProtectedData.Protect(plain, entropy, DataProtectionScope.CurrentUser);
         }
         finally { CryptographicOperations.ZeroMemory(plain); }
@@ -78,8 +80,13 @@ internal sealed class BillingSessionStore(string directory, bool claude = false)
             cookies.AddRange(await manager.GetCookiesAsync(url));
         return cookies.Where(cookie => IsAllowedDomain(cookie.Domain)).DistinctBy(cookie => (cookie.Name, cookie.Domain, cookie.Path)).ToList();
     }
-    internal Task<List<CoreWebView2Cookie>> GetCookiesAsync(CoreWebView2CookieManager manager) => claude
-        ? manager.GetCookiesAsync("https://claude.ai/settings/usage") : GetOwnCookiesAsync(manager);
+    internal async Task<List<CoreWebView2Cookie>> GetCookiesAsync(CoreWebView2CookieManager manager) => anthropic
+        ? (await manager.GetCookiesAsync(OtterMonitor.Core.AnthropicBillingNavigation.OverviewUrl))
+            .Concat(await manager.GetCookiesAsync("https://console.anthropic.com/settings/billing"))
+            .Where(cookie => IsSessionDomain(cookie.Domain)).DistinctBy(cookie => (cookie.Name, cookie.Domain, cookie.Path)).ToList()
+        : jev
+        ? await manager.GetCookiesAsync(OtterMonitor.Core.JevBillingNavigation.OverviewUrl)
+        : claude ? await manager.GetCookiesAsync("https://claude.ai/settings/usage") : await GetOwnCookiesAsync(manager);
     internal async Task RestoreAsync(CoreWebView2CookieManager manager, Func<bool>? isCurrent = null)
     {
         var saved = Read(DateTime.UtcNow);

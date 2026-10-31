@@ -1,0 +1,8 @@
+TypeSafe AI / Jev brand symbol
+
+Source: the official TypeSafe AI console, https://console.typesafe.ai/home
+Retrieved: 2026-10-23
+
+Assets/typesafe.svg preserves the symbol path from the official console's logo.
+The application uses the same path as a WPF vector to identify its JEV balance integration.
+The TypeSafe name and symbol belong to their respective owner. No endorsement is implied.

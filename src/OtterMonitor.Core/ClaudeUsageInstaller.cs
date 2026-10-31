@@ -18,7 +18,7 @@ public sealed class ClaudeUsageInstaller(string dataDirectory, string settingsFi
     private bool IsOurs(JsonNode? line) => line is JsonObject value && value["command"]?.GetValue<string>() is { } command
         && (command == Command || legacyDataDirectory is not null && command == CommandFor(Path.Combine(legacyDataDirectory, "claude-usage.ps1")));
     private JsonObject ReadSettings() => File.Exists(settingsFile)
-        ? JsonNode.Parse(File.ReadAllText(settingsFile)) as JsonObject ?? throw new IOException("Claude-inställningarna är inte ett JSON-objekt.") : new();
+        ? JsonNode.Parse(File.ReadAllText(settingsFile)) as JsonObject ?? throw new IOException(UiText.T("Claude-inställningarna är inte ett JSON-objekt.")) : new();
 
     public bool IsInstalled()
     {
@@ -32,12 +32,12 @@ public sealed class ClaudeUsageInstaller(string dataDirectory, string settingsFi
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(settingsFile))!);
         // Lock the settings file itself while reading/preserving unrelated fields. A concurrent editor fails instead of losing data.
         using var file = new FileStream(settingsFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-        if (file.Length > 4 * 1024 * 1024) throw new IOException("Claude-inställningarna är för stora.");
+        if (file.Length > 4 * 1024 * 1024) throw new IOException(UiText.T("Claude-inställningarna är för stora."));
         var bytes = new byte[file.Length]; file.ReadExactly(bytes);
         var settings = bytes.Length == 0 ? new JsonObject() : ParseSettings(bytes);
         var existing = settings["statusLine"];
         if (existing is not null && !IsOurs(existing))
-            throw new IOException("Claude Code har redan en egen statusrad. Otter Monitor har inte ändrat den. Kopplingen kan kombineras manuellt enligt README.");
+            throw new IOException(UiText.T("Claude Code har redan en egen statusrad. Otter Monitor har inte ändrat den. Kopplingen kan kombineras manuellt enligt README."));
         using var stream = typeof(ClaudeUsageInstaller).Assembly.GetManifestResourceStream("OtterMonitor.Core.claude-usage.ps1")!;
         using var reader = new StreamReader(stream);
         var script = reader.ReadToEnd();
@@ -54,7 +54,7 @@ public sealed class ClaudeUsageInstaller(string dataDirectory, string settingsFi
     {
         if (!File.Exists(settingsFile)) return;
         using var file = new FileStream(settingsFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-        if (file.Length > 4 * 1024 * 1024) throw new IOException("Claude-inställningarna är för stora.");
+        if (file.Length > 4 * 1024 * 1024) throw new IOException(UiText.T("Claude-inställningarna är för stora."));
         var bytes = new byte[file.Length]; file.ReadExactly(bytes);
         var settings = ParseSettings(bytes);
         if (!IsOurs(settings["statusLine"])) return;
@@ -72,5 +72,5 @@ public sealed class ClaudeUsageInstaller(string dataDirectory, string settingsFi
     }
 
     private static JsonObject ParseSettings(byte[] bytes) => JsonNode.Parse(Encoding.UTF8.GetString(bytes).TrimStart('\uFEFF')) as JsonObject
-        ?? throw new IOException("Ogiltiga Claude-inställningar.");
+        ?? throw new IOException(UiText.T("Ogiltiga Claude-inställningar."));
 }

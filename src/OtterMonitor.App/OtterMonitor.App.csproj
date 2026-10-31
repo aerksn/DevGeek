@@ -15,8 +15,12 @@
   <ItemGroup><ProjectReference Include="../OtterMonitor.Core/OtterMonitor.Core.csproj" /></ItemGroup>
   <ItemGroup>
     <Resource Include="otter-monitor.ico" />
+    <Resource Include="Assets/Fonts/*.ttf" />
+    <Content Include="../../licenses/BricolageGrotesque-OFL.txt" Link="BricolageGrotesque-OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
     <EmbeddedResource Include="OpenAiBalanceReader.js" LogicalName="OtterMonitor.BalanceReader.js" />
+    <EmbeddedResource Include="JevBalanceReader.js" LogicalName="OtterMonitor.JevBalanceReader.js" />
+    <EmbeddedResource Include="AnthropicBalanceReader.js" LogicalName="OtterMonitor.AnthropicBalanceReader.js" />
     <EmbeddedResource Include="ClaudeUsageReader.js" LogicalName="OtterMonitor.ClaudeUsageReader.js" />
   </ItemGroup>
 </Project>

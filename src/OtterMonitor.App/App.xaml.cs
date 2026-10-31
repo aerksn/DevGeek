@@ -13,6 +13,21 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--read-anthropic-balance"))
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var rootIndex = Array.IndexOf(e.Args, "--data-root"); var reportIndex = Array.IndexOf(e.Args, "--report");
+            if (rootIndex < 0 || reportIndex < 0 || rootIndex + 1 >= e.Args.Length || reportIndex + 1 >= e.Args.Length) { Shutdown(2); return; }
+            try
+            {
+                var result = await BillingBrowser.ReadAnthropicBalanceAsync(e.Args[rootIndex + 1]);
+                File.WriteAllText(e.Args[reportIndex + 1], System.Text.Json.JsonSerializer.Serialize(result.Message, BalanceStore.JsonOptions));
+                if (result.Diagnostic is not null) File.WriteAllText(e.Args[reportIndex + 1] + ".diagnostic.json", result.Diagnostic);
+                Shutdown(result.Message.State == "ok" ? 0 : 1);
+            }
+            catch (Exception ex) { File.WriteAllText(e.Args[reportIndex + 1], ex.GetType().Name); Shutdown(1); }
+            return;
+        }
         if (e.Args.Contains("--verify-claude-browser"))
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -47,13 +62,13 @@ public partial class App : Application
             catch (Exception ex) { File.WriteAllText(e.Args[reportIndex + 1], ex.ToString()); Shutdown(1); }
             return;
         }
-        if (e.Args.Contains("--verify-background"))
+        if (e.Args.Contains("--verify-background") || e.Args.Contains("--verify-jev-background") || e.Args.Contains("--verify-anthropic-background"))
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var reportIndex = Array.IndexOf(e.Args, "--report");
             var rootIndex = Array.IndexOf(e.Args, "--test-root");
             if (reportIndex < 0 || rootIndex < 0 || reportIndex + 1 >= e.Args.Length || rootIndex + 1 >= e.Args.Length) { Shutdown(1); return; }
-            try { File.WriteAllText(e.Args[reportIndex + 1], await BillingBrowser.VerifyAsync(e.Args[rootIndex + 1])); Shutdown(0); }
+            try { File.WriteAllText(e.Args[reportIndex + 1], e.Args.Contains("--verify-anthropic-background") ? await BillingBrowser.VerifyAnthropicAsync(e.Args[rootIndex + 1]) : e.Args.Contains("--verify-jev-background") ? await BillingBrowser.VerifyJevAsync(e.Args[rootIndex + 1]) : await BillingBrowser.VerifyAsync(e.Args[rootIndex + 1])); Shutdown(0); }
             catch (Exception ex) { File.WriteAllText(e.Args[reportIndex + 1], ex.ToString()); Shutdown(1); }
             return;
         }
@@ -96,7 +111,7 @@ public partial class App : Application
             {
                 // The first instance may be hidden in the notification area; ask it to show itself.
                 if (EventWaitHandle.TryOpenExisting(ShowEventName, out var existing)) using (existing) existing.Set();
-                else MessageBox.Show("Otter Monitor körs redan. Du hittar ikonen i systemfältet.", "Otter Monitor");
+                else MessageBox.Show(UiText.T("Otter Monitor körs redan. Du hittar ikonen i systemfältet."), "Otter Monitor");
                 Shutdown(); return;
             }
             showRequests = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
@@ -108,9 +123,11 @@ public partial class App : Application
         try { settings = preview || capture ? new Settings() : store.Load(); }
         catch (Exception ex)
         {
-            MessageBox.Show($"Inställningarna kunde inte läsas. Filen har inte ändrats.\n\n{store.FilePath}\n\n{ex.Message}", "Otter Monitor", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(UiText.F("Inst\u00E4llningarna kunde inte l\u00E4sas. Filen har inte \u00E4ndrats.\n\n{0}\n\n{1}", store.FilePath, ex.Message), "Otter Monitor", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1); return;
         }
+        if (preview || capture) settings.Language = e.Args.Contains("--swedish") ? "sv" : "en";
+        UiText.SetLanguage(settings.Language);
         var main = new MainWindow(store, settings, preview || capture);
         MainWindow = main;
         if (preview || capture)
@@ -118,8 +135,8 @@ public partial class App : Application
             var stayOpen = e.Args.Contains("--stay-open");
             if (stayOpen)
             {
-                main.Title = "Otter Monitor · Designförhandsvisning";
-                if (e.Args.Contains("--glass")) main.EnableGlassPreview();
+                main.Title = UiText.T("Otter Monitor · Designförhandsvisning");
+                main.EnableGlassPreview(); // Interactive previews use real glass, without reading or saving user data.
             }
             else
             {
@@ -127,6 +144,7 @@ public partial class App : Application
                 main.Left = -16000; main.Top = -16000; main.ShowInTaskbar = false; main.ShowActivated = false;
             }
             if (preview) main.LoadPreview(e.Args.Contains("--empty"));
+            if (preview && e.Args.Contains("--theme-example")) main.LoadThemePreview();
             if (preview && e.Args.Contains("--group-example")) main.LoadGroupExamplePreview();
             if (preview && e.Args.Contains("--status-example")) main.LoadStatusExample();
             main.Show();
@@ -158,17 +176,27 @@ public partial class App : Application
             }
             if (e.Args.Contains("--dialog"))
             {
-                renderedWindow = new QuickStartDialog(new QuickStart { Name = "Starta dev miljö", Directory = @"C:\repos\demo-app", Command = "bun run dev" }) { Owner = main, WindowStartupLocation = WindowStartupLocation.Manual, Left = -16000, Top = -16000, ShowInTaskbar = false, ShowActivated = false };
+                renderedWindow = new QuickStartDialog(new QuickStart { Name = UiText.T("Starta dev miljö"), Directory = @"C:\repos\demo-app", Command = "bun run dev" }) { Owner = main, WindowStartupLocation = WindowStartupLocation.Manual, Left = -16000, Top = -16000, ShowInTaskbar = false, ShowActivated = false };
                 renderedWindow.Show();
             }
-            if (e.Args.Contains("--balance-dialog"))
+            if (e.Args.Contains("--balance-dialog") || e.Args.Contains("--jev-balance-dialog") || e.Args.Contains("--anthropic-balance-dialog"))
             {
-                renderedWindow = main.CreateBalanceDialog();
+                renderedWindow = e.Args.Contains("--anthropic-balance-dialog") ? main.CreateAnthropicBalanceDialog() : e.Args.Contains("--jev-balance-dialog") ? main.CreateJevBalanceDialog() : main.CreateBalanceDialog();
                 renderedWindow.WindowStartupLocation = WindowStartupLocation.Manual;
                 renderedWindow.Left = -16000; renderedWindow.Top = -16000;
                 renderedWindow.ShowActivated = false;
                 renderedWindow.Show();
             }
+            if (e.Args.Contains("--settings-dialog"))
+            {
+                renderedWindow = main.CreateSettingsWindow();
+                if (e.Args.Contains("--settings-general")) ((SettingsWindow)renderedWindow).SelectSection("general");
+                if (e.Args.Contains("--settings-appearance")) ((SettingsWindow)renderedWindow).SelectSection("appearance");
+                renderedWindow.WindowStartupLocation = WindowStartupLocation.Manual;
+                renderedWindow.Left = -16000; renderedWindow.Top = -16000; renderedWindow.ShowActivated = false;
+                renderedWindow.Show();
+            }
+            if (e.Args.Contains("--menu-preview")) renderedWindow = main.OpenMenuPreview();
             if (e.Args.Contains("--appearance-dialog"))
             {
                 renderedWindow = main.CreateAppearanceDialog();
@@ -176,7 +204,22 @@ public partial class App : Application
                 renderedWindow.Left = -16000; renderedWindow.Top = -16000; renderedWindow.ShowActivated = false;
                 renderedWindow.Show();
             }
-            if (stayOpen) return;
+            if (materialIndex >= 0 && materialIndex + 1 < e.Args.Length && renderedWindow != main)
+            {
+                var description = renderedWindow switch { AppearanceDialog colors => colors.DescribeMaterial(), SettingsWindow options => options.DescribeMaterial(), _ => null };
+                if (description is not null) File.AppendAllText(e.Args[materialIndex + 1], "\n\nDialog:\n" + description);
+            }
+            if (stayOpen)
+            {
+                if (renderedWindow != main)
+                {
+                    renderedWindow.Left = main.Left + (main.ActualWidth - renderedWindow.ActualWidth) / 2;
+                    renderedWindow.Top = main.Top;
+                    renderedWindow.ShowInTaskbar = true;
+                    renderedWindow.Activate();
+                }
+                return;
+            }
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
             renderedWindow.UpdateLayout();
             var pathIndex = Array.IndexOf(e.Args, "--output");

@@ -5,6 +5,26 @@ internal static class AppearanceTests
 {
     internal static async Task Run(string root, Func<string, Func<Task>, Task> test, Action<bool, string> check)
     {
+        await test("Visibility defaults keep existing dashboards visible and survive restart independently of account connections", () =>
+        {
+            var store = new SettingsStore(Path.Combine(root, "visibility-settings")); Directory.CreateDirectory(store.DirectoryPath);
+            foreach (var legacy in new[] { "{\"Version\":1,\"OpenAiBalanceEnabled\":true,\"QuickStarts\":[]}", "{\"Version\":1,\"Visibility\":null,\"QuickStarts\":[]}" })
+            {
+                File.WriteAllText(store.FilePath, legacy);
+                check(store.Load().Visibility == new DashboardVisibility(), "Missing/null visibility hides existing sections.");
+            }
+            foreach (var mask in Enumerable.Range(0, 16))
+            {
+                var visibility = new DashboardVisibility { OpenAi = (mask & 1) != 0, Jev = (mask & 2) != 0, Codex = (mask & 4) != 0, Claude = (mask & 8) != 0 };
+                var settings = new Settings { Visibility = visibility, OpenAiBalanceEnabled = true, JevBalanceEnabled = true, ClaudeUsageEnabled = true, Topmost = true,
+                    Appearance = new() { Color = "#1468AB" }, QuickStarts = [new() { Name = "Saved", Directory = root, Command = "echo sample" }] };
+                store.Save(settings); var restored = new SettingsStore(store.DirectoryPath).Load();
+                check(restored.Visibility == visibility && restored.OpenAiBalanceEnabled && restored.JevBalanceEnabled && restored.ClaudeUsageEnabled
+                    && restored.Topmost && restored.Appearance == settings.Appearance && restored.QuickStarts.Single().Id == settings.QuickStarts.Single().Id,
+                    "Visibility changed a connection or failed to survive restart.");
+            }
+            return Task.CompletedTask;
+        });
         await test("Appearance survives restart and preserves quick starts, pins and account settings", () =>
         {
             var store = new SettingsStore(Path.Combine(root, "appearance-settings"));

@@ -56,19 +56,19 @@ public partial class MainWindow
         var empty = Ports.Count == 0 && LaunchRows.Count == 0;
         EmptyState.Visibility = empty && scanned && query.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         DenseEmptyPorts.Visibility = empty && (query.Length > 0 || !scanned) ? Visibility.Visible : Visibility.Collapsed;
-        DenseEmptyPorts.Text = query.Length > 0 ? $"Inget matchar ”{query}”" : "Läser aktiva portar…";
+        DenseEmptyPorts.Text = query.Length > 0 ? UiText.F("Inget matchar \u201D{0}\u201D", query) : UiText.T("Läser aktiva portar…");
         if (EmptyState.IsVisible || empty) EmptyHint.Text = groupCache.Count > 0 && developmentOnly
-            ? $"{groupCache.Count} {(groupCache.Count == 1 ? "annan process lyssnar" : "andra processer lyssnar")} på portar. Avmarkera Bara utveckling i ⌄-menyn för att se {(groupCache.Count == 1 ? "den" : "dem")}."
-            : "Starta en dev-server så dyker den upp här, eller lägg till en snabbstart.";
+            ? UiText.F("{0} {1} p\u00E5 portar. Avmarkera Bara utveckling i \u2304-menyn f\u00F6r att se {2}.", groupCache.Count, (groupCache.Count == 1 ? UiText.T("annan process lyssnar") : UiText.T("andra processer lyssnar")), (groupCache.Count == 1 ? UiText.T("den") : UiText.T("dem")))
+            : UiText.T("Starta en dev-server så dyker den upp här, eller lägg till en snabbstart.");
     }
 
     /// <summary>Preview: one failing and one warning service plus a visible confirmation, for screenshots.</summary>
     public void LoadStatusExample()
     {
         if (!preview) return;
-        Ports.Single(group => group.Name == "demo-web").SetProbe(new("Svarar inte", Core.ServiceTone.Bad, null, "Förhandsvisning · Exempeldata", DateTime.UtcNow));
-        Ports.Single(group => group.Name == "dotnet").SetProbe(new("HTTP 404", Core.ServiceTone.Warning, 31, "Förhandsvisning · Exempeldata", DateTime.UtcNow));
-        SetStatus("Kopierade http://localhost:3000/.");
+        Ports.Single(group => group.Name == "demo-web").SetProbe(new(UiText.T("Svarar inte"), Core.ServiceTone.Bad, null, UiText.T("Förhandsvisning · Exempeldata"), DateTime.UtcNow));
+        Ports.Single(group => group.Name == "dotnet").SetProbe(new("HTTP 404", Core.ServiceTone.Warning, 31, UiText.T("Förhandsvisning · Exempeldata"), DateTime.UtcNow));
+        SetStatus(UiText.T("Kopierade http://localhost:3000/."));
         Toast.BeginAnimation(OpacityProperty, null); Toast.Opacity = 1; // Skip the fade so the still image shows it.
     }
 

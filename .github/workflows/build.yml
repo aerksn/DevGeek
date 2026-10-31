@@ -26,14 +26,12 @@ jobs:
           $env:OTTERMONITOR_TEST_NODE = (Get-Command node).Source
           dotnet run --project tests/OtterMonitor.Tests/OtterMonitor.Tests.csproj -c Release -- "$env:RUNNER_TEMP\otter-monitor-tests" "$pwd\app\OtterMonitor.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: OpenAI DOM reader checks
-        run: node --test tests/OpenAiBalanceReader/reader.test.cjs
-      - name: Claude quota reader checks
-        run: node --test tests/ClaudeUsageReader/reader.test.cjs
+      - name: API balance and assistant quota reader checks
+        run: node --test tests/OpenAiBalanceReader/reader.test.cjs tests/JevBalanceReader/reader.test.cjs tests/AnthropicBalanceReader/reader.test.cjs tests/ClaudeUsageReader/reader.test.cjs
       - name: WPF controls with synthetic data
         shell: pwsh
         run: |
-          $run = Start-Process -FilePath ./app/OtterMonitor.exe -ArgumentList '--preview','--verify-ui','--report',"$env:RUNNER_TEMP\ui-report.txt",'--output',"$env:RUNNER_TEMP\preview.png" -WindowStyle Hidden -PassThru
+          $run = Start-Process -FilePath ./app/OtterMonitor.exe -ArgumentList '--preview','--swedish','--verify-ui','--report',"$env:RUNNER_TEMP\ui-report.txt",'--output',"$env:RUNNER_TEMP\preview.png" -WindowStyle Hidden -PassThru
           if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'UI check timeout' }
           Get-Content "$env:RUNNER_TEMP\ui-report.txt"
           if ($run.ExitCode -ne 0) { exit $run.ExitCode }

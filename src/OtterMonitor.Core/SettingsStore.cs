@@ -11,10 +11,12 @@ public sealed class SettingsStore(string directory)
     public Settings Load()
     {
         if (!File.Exists(FilePath)) return new Settings();
-        var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? throw new InvalidDataException("Inställningsfilen är tom.");
+        var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? throw new InvalidDataException(UiText.T("Inställningsfilen är tom."));
         if (settings.Version != 1 || settings.QuickStarts is null || settings.QuickStarts.Any(q => q is null || q.Id == Guid.Empty || string.IsNullOrWhiteSpace(q.Name) || q.Directory is null || q.Command is null) || settings.QuickStarts.Select(q => q.Id).Distinct().Count() != settings.QuickStarts.Count)
-            throw new InvalidDataException("Inställningsfilen har ett ogiltigt format eller en nyare version.");
+            throw new InvalidDataException(UiText.T("Inställningsfilen har ett ogiltigt format eller en nyare version."));
         settings.Appearance = (settings.Appearance ?? new()).Normalize();
+        settings.Visibility ??= new();
+        settings.Language = settings.Language == "sv" ? "sv" : "en";
         return settings;
     }
 
