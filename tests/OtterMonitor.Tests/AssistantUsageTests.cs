@@ -102,6 +102,9 @@ internal static class AssistantUsageTests
                 && !AssistantProcesses.IsClaudeDesktop(@"C:\Users\test\.local\bin\claude.exe")
                 && !AssistantProcesses.IsClaudeDesktop(@"C:\Apps\unrelated\claude.exe"), "Desktop installation recognition failed.");
             check(AssistantProcesses.IsCodexCli(@"C:\Users\test\AppData\Local\OpenAI\Codex\bin\version\codex.exe")
+                && AssistantProcesses.IsCodexCli(@"C:\Program Files\WindowsApps\OpenAI.Codex_26.1103.7773.0_x64__example\app\resources\codex.exe")
+                && AssistantProcesses.IsCodexCli(@"C:\Users\test\.t3\tools\codex\0.166.0\bin\codex.exe")
+                && !AssistantProcesses.IsCodexCli(@"C:\Program Files\WindowsApps\OpenAI.Codex_26.1103.7773.0_x64__example\app\Codex.exe")
                 && !AssistantProcesses.IsCodexCli(@"C:\Apps\Codex\Codex.exe"), "Desktop executable was treated as RPC CLI.");
             return Task.CompletedTask;
         });

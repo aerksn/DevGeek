@@ -60,15 +60,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Changed([CallerMemberName] string? name = null)
     {
         PropertyChanged?.Invoke(this, new(name));
-        if (name == nameof(BalanceLabel)) PropertyChanged?.Invoke(this, new(nameof(OpenAiHeaderLabel)));
-        if (name == nameof(JevBalanceLabel)) PropertyChanged?.Invoke(this, new(nameof(JevHeaderLabel)));
-        if (name == nameof(AnthropicBalanceLabel)) PropertyChanged?.Invoke(this, new(nameof(AnthropicHeaderLabel)));
+        if (name == nameof(BalanceLabel)) { PropertyChanged?.Invoke(this, new(nameof(OpenAiHeaderLabel))); PropertyChanged?.Invoke(this, new(nameof(OpenAiBalanceIsStale))); }
+        if (name == nameof(JevBalanceLabel)) { PropertyChanged?.Invoke(this, new(nameof(JevHeaderLabel))); PropertyChanged?.Invoke(this, new(nameof(JevBalanceIsStale))); }
+        if (name == nameof(AnthropicBalanceLabel)) { PropertyChanged?.Invoke(this, new(nameof(AnthropicHeaderLabel))); PropertyChanged?.Invoke(this, new(nameof(AnthropicBalanceIsStale))); }
     }
-    private string HeaderBalance(string label, string provider)
-    {
-        var accounts = (settings.Visibility.OpenAi ? 1 : 0) + (settings.Visibility.Jev ? 1 : 0) + (settings.Visibility.Anthropic ? 1 : 0);
-        return accounts == 3 && ActualWidth < 500 ? label.Replace(provider + " · ", "", StringComparison.Ordinal) : label;
-    }
+    private static string HeaderBalance(string label, string provider) => label.StartsWith(provider + " · ", StringComparison.Ordinal)
+        ? label[(provider.Length + 3)..].Replace(UiText.T(" · äldre"), "", StringComparison.Ordinal) : label;
+    private static bool IsBalanceStale(BalanceSnapshot? snapshot, string? error) => snapshot?.Amount is not null && (error is not null || !snapshot.IsFresh(DateTime.UtcNow));
+    public bool OpenAiBalanceIsStale => settings.OpenAiBalanceEnabled && IsBalanceStale(balance, balanceError);
+    public bool JevBalanceIsStale => settings.JevBalanceEnabled && IsBalanceStale(jevBalance, jevBalanceError);
+    public bool AnthropicBalanceIsStale => settings.AnthropicBalanceEnabled && IsBalanceStale(anthropicBalance, anthropicBalanceError);
     public string OpenAiHeaderLabel => HeaderBalance(BalanceLabel, "OpenAI");
     public string JevHeaderLabel => HeaderBalance(JevBalanceLabel, "JEV");
     public string AnthropicHeaderLabel => HeaderBalance(AnthropicBalanceLabel, "Anthropic API");
@@ -81,6 +82,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         anthropicBalanceStore = new(store.DirectoryPath, anthropic: true);
         launches = new(store.DirectoryPath, shadowCopyHost: !File.Exists(Path.Combine(AppContext.BaseDirectory, "OtterMonitor.dll")));
         InitializeComponent(); DataContext = this;
+        CompactDragArea.SizeChanged += (_, _) => SizeApiBalances();
         SizeChanged += (_, _) => { Changed(nameof(OpenAiHeaderLabel)); Changed(nameof(JevHeaderLabel)); Changed(nameof(AnthropicHeaderLabel)); };
         material = new(this, enabled: !preview, hasTintLayer: true);
         InitializeAppearance();
@@ -625,7 +627,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         Check(HitTest(CompactCaptionArea) == 1 && HitTest(DropdownButton) == 1 && HitTest(BalanceButton) == 1 && HitTest(CompactBalanceText) == 1 && HitTest(OpenAiLogo) == 1, "Buttons and blank header space share the managed click-or-drag gesture");
         Check(OpenAiLogo.Data.Bounds.Width > 20 && OpenAiLogo.IsVisible && RowVisuals<System.Windows.Shapes.Path>(BalanceButton).Contains(OpenAiLogo), "OpenAI balance uses the complete Blossom vector in its interactive button");
-        Check(CompactBalanceText.Text == OpenAiHeaderLabel && OpenAiHeaderLabel.Contains("$24.50") && BalanceLabel.EndsWith(" · exempel") && CompactCaptionArea.ActualWidth >= 24, "Compact balances retain their amounts and expose provider names at wider window sizes");
+        Check(CompactBalanceText.Text == OpenAiHeaderLabel && OpenAiHeaderLabel.Contains("$24.50") && BalanceLabel.EndsWith(" · exempel") && CompactCaptionArea.ActualWidth >= 24, "Compact balances retain their amounts with provider icons");
+        foreach (var width in new[] { 360d, 680d })
+        {
+            Width = width; UpdateLayout();
+            Check(!OpenAiHeaderLabel.Contains("OpenAI") && !JevHeaderLabel.Contains("JEV") && !AnthropicHeaderLabel.Contains("Anthropic")
+                && OpenAiLogo.IsVisible && JevLogo.IsVisible && AnthropicHeaderLabel.Contains("$"), "API header uses icons and amounts at width " + width);
+        }
+        Width = 360; UpdateLayout();
         Check(HitTest(JevBalanceButton) == 1 && HitTest(CompactJevBalanceText) == 1 && CompactJevBalanceText.Text == JevHeaderLabel && JevHeaderLabel.Contains("$8.50"), "JEV balance has its own clickable icon and amount beside OpenAI");
         Check(HitTest(OtterMenuButton) == 1 && OtterMenuButton.TranslatePoint(new Point(0, 0), this).X < BalanceButton.TranslatePoint(new Point(0, 0), this).X,
             "The original single toolbar places the Otter menu to the left of the API balances");
@@ -655,8 +664,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Check(stops.Length == Ports.Count && stops.All(button => button.ActualWidth == 28 && button.ActualHeight == 24 && button.Padding == new Thickness(6, 3, 6, 3)), "Every compact stop target has a 28 by 24 button with reduced padding");
         balance = balance! with { State = "page_closed" }; Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
         Check(BalanceLabel.Contains("äldre") && balance.Hint(DateTime.UtcNow).Contains("stängd"), "Closing Billing retains the last amount but visibly marks it older");
+        UpdateLayout();
+        Check(OpenAiStaleIndicator.IsVisible && !OpenAiHeaderLabel.Contains("äldre") && OpenAiHeaderLabel.Contains("$24.50"), "An older balance keeps its amount and shows a small indicator instead of status text");
         balance = new(0m, DateTime.UtcNow, DateTime.UtcNow, "ok"); Changed(nameof(BalanceLabel));
         Check(BalanceLabel == "OpenAI · $0.00 · exempel", "Zero balance is displayed as a real value within the clearly marked preview");
+        UpdateLayout();
+        Check(!OpenAiStaleIndicator.IsVisible && OpenAiHeaderLabel.Contains("$0.00"), "A fresh zero balance clears the older indicator");
         balance = new(24.50m, DateTime.UtcNow, DateTime.UtcNow, "ok"); Changed(nameof(BalanceLabel)); Changed(nameof(BalanceHint));
         var isolatedBalancePath = Path.Combine(Path.GetTempPath(), "OtterMonitor-balance-binding-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(isolatedBalancePath);

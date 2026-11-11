@@ -33,7 +33,10 @@
       let parent = element.parentElement;
       for (let depth = 0; parent && depth < 5; depth++, parent = parent.parentElement) {
         const text = clean(parent.innerText);
-        if (text.length > 160 || parent.querySelector("button,a,h1,h2,h3,[role=alert],input,select")) break;
+        if (text.length > 160 || parent.querySelector("h1,h2,h3,[role=alert],input,select")) break;
+        // The current card includes a Buy credits link beside the amount. Permit
+        // controls without prices, but never mistake a payment control for a balance.
+        if ([...parent.querySelectorAll("button,a")].some(control => dollars(clean(control.innerText)).length > 0)) break;
         const amounts = dollars(text);
         if (amounts.length === 1) { values.add(amounts[0]); break; }
         if (amounts.length > 1) break; // Ambiguous card: fail instead of guessing.

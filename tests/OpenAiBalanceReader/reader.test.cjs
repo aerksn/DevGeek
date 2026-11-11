@@ -18,7 +18,8 @@ class Element {
   get textContent() { return this.text + this.children.map(child => child.textContent).join(' '); }
   get innerText() { return this.hidden ? '' : this.text + this.children.filter(child => !child.hidden).map(child => child.innerText).join(' '); }
   getClientRects() { return this.hidden || this.parentElement?.getClientRects().length === 0 ? [] : [{}]; }
-  querySelector() { return this.children.flatMap(child => [child, ...child.descendants()]).find(child => ['button', 'a', 'h1', 'h2', 'h3', 'input', 'select'].includes(child.tag)); }
+  querySelector(selector) { return this.querySelectorAll(selector)[0]; }
+  querySelectorAll(selector) { return this.descendants().filter(child => selector.split(',').includes(child.tag)); }
   descendants() { return this.children.flatMap(child => [child, ...child.descendants()]); }
 }
 const el = (tag, text, children, hidden) => new Element(tag, text, children, hidden);
@@ -26,6 +27,21 @@ function card(amount = '$24.50', hidden = false) { return el('div', '', [el('spa
 function document(...children) { const root = el('div', '', children); return { querySelectorAll: selector => root.descendants().filter(element => selector.split(',').includes(element.tag)), defaultView: { getComputedStyle: element => ({ visibility: element.hidden ? 'hidden' : 'visible' }) } }; }
 test('Exact balance card wins over $0 warning and Buy credits button', () => {
   assert.deepEqual(reader.read(document(card(), el('p', 'When your credit reaches $0, requests stop.'), el('button', 'Buy credits')), billing), { schema: 1, state: 'ok', amount: '24.50', currency: 'USD' });
+});
+
+test('Current balance card permits a Buy credits link but never reads amounts from payment controls', () => {
+  const current = card('$8.26');
+  current.children[1].text = '';
+  current.children[1].children = [el('div', '$8.26'), el('a', 'Buy credits')];
+  assert.deepEqual(reader.read(document(current), billing), { schema: 1, state: 'ok', amount: '8.26', currency: 'USD' });
+  for (const tag of ['a', 'button']) {
+    for (const amount of ['', '$8.26']) {
+      const payment = card(amount);
+      payment.children[1].text = '';
+      payment.children[1].children = [el('div', amount), el(tag, 'Buy credits $100')];
+      assert.deepEqual(reader.read(document(payment), billing), { schema: 1, state: 'unreadable' });
+    }
+  }
 });
 test('Hidden, conflicting, missing or malformed balance fields never become a guessed amount', () => {
   for (const doc of [document(card(''), el('p', 'Your credit reaches $0')), document(card('', false), el('p', 'Your credit reaches $0'), el('button', 'Buy credits')), document(card('$7 $8')), document(card('$7'), card('$8')), document(card('$7', true)), document(card('Loading…'), el('p', '$0')), document(card('EUR $7'))]) assert.deepEqual(reader.read(doc, billing), { schema: 1, state: 'unreadable' });

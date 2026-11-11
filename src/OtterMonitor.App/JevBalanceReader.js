@@ -6,7 +6,7 @@
     try {
       const value = new URL(url);
       return value.protocol === "https:" && value.hostname === "console.typesafe.ai" &&
-        (value.port === "" || value.port === "443") && /^\/settings\/billing\/?$/.test(value.pathname);
+        (value.port === "" || value.port === "443") && /^\/(?:settings\/)?billing\/?$/.test(value.pathname);
     } catch { return false; }
   }
   function dollars(text) {

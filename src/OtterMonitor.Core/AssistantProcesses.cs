@@ -69,6 +69,10 @@ public static class AssistantProcesses
     {
         var normalized = path.Replace('\\', '/');
         return normalized.Contains("/Codex/bin/", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("/WindowsApps/OpenAI.Codex_", StringComparison.OrdinalIgnoreCase)
+                && normalized.EndsWith("/app/resources/codex.exe", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("/.t3/tools/codex/", StringComparison.OrdinalIgnoreCase)
+                && normalized.EndsWith("/bin/codex.exe", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/codex/vendor/", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/codex-win32-", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/.local/bin/", StringComparison.OrdinalIgnoreCase);

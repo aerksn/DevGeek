@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const reader = require('../../src/OtterMonitor.App/JevBalanceReader.js');
 
 test('JEV reads only the exact HTTPS TypeSafe Billing route', () => {
-  for (const url of ['https://console.typesafe.ai/settings/billing', 'https://console.typesafe.ai:443/settings/billing/?x=1']) assert.equal(reader.isBilling(url), true);
-  for (const url of ['http://console.typesafe.ai/settings/billing', 'https://console.typesafe.ai:8443/settings/billing', 'https://console.typesafe.ai.evil.test/settings/billing', 'https://typesafe.ai/settings/billing', 'https://console.typesafe.ai/usage', 'https://console.typesafe.ai/settings/billing/history', 'invalid']) assert.equal(reader.isBilling(url), false);
+  for (const url of ['https://console.typesafe.ai/settings/billing', 'https://console.typesafe.ai:443/settings/billing/?x=1', 'https://console.typesafe.ai/billing', 'https://console.typesafe.ai/billing/?x=1']) assert.equal(reader.isBilling(url), true);
+  for (const url of ['http://console.typesafe.ai/settings/billing', 'https://console.typesafe.ai:8443/settings/billing', 'https://console.typesafe.ai.evil.test/settings/billing', 'https://typesafe.ai/settings/billing', 'https://console.typesafe.ai/usage', 'https://console.typesafe.ai/settings/billing/history', 'https://console.typesafe.ai/billing/history', 'invalid']) assert.equal(reader.isBilling(url), false);
 });
 
 test('Available credit values support zero, negative and grouped USD without accepting estimates or other currencies', () => {

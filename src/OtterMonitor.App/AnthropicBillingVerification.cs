@@ -6,11 +6,11 @@ namespace OtterMonitor.App;
 public sealed partial class BillingBrowser
 {
     // Explicit diagnostic: read the existing app profile without changing opt-ins, checkpoints or balance files.
-    internal static async Task<(BalanceMessage Message, string? Diagnostic)> ReadAnthropicBalanceAsync(string directory)
+    internal static async Task<(BalanceMessage Message, string? Diagnostic)> ReadBalanceAsync(string directory, bool jev = false, bool anthropic = false)
     {
-        if (!Directory.Exists(Path.Combine(directory, "anthropic-profile"))) throw new DirectoryNotFoundException();
+        if (!Directory.Exists(Path.Combine(directory, anthropic ? "anthropic-profile" : jev ? "jev-profile" : "billing-profile"))) throw new DirectoryNotFoundException();
         BalanceMessage last = new(1, "unreadable");
-        using var browser = new BillingBrowser(directory, message => { last = message; return true; }, _ => { }, fixture: false, rememberSession: false, anthropic: true);
+        using var browser = new BillingBrowser(directory, message => { last = message; return true; }, _ => { }, fixture: false, rememberSession: false, jev: jev, anthropic: anthropic);
         await browser.StartAsync();
         var deadline = DateTime.UtcNow.AddSeconds(25);
         while (DateTime.UtcNow < deadline)
@@ -26,7 +26,10 @@ public sealed partial class BillingBrowser
               const path = value => { try { const url=new URL(value,location.href);return url.origin+url.pathname; } catch { return ''; } };
               const parents = element => { const result=[];for(let node=element.parentElement;node && result.length<6;node=node.parentElement)result.push({tag:node.tagName,role:node.getAttribute('role')});return result; };
               const links=[...document.querySelectorAll('a[href],[role=link]')].filter(element => /^\$[\d,.]+$/.test(clean(element.textContent)) || /\/settings\/billing\/?$/.test(element.getAttribute('href') ?? '')).slice(0,8).map(element=>({tag:element.tagName,role:element.getAttribute('role'),text:clean(element.innerText).slice(0,80),content:clean(element.textContent).slice(0,80),url:path(element.getAttribute('href')),rects:element.getClientRects().length,parents:parents(element)}));
-              return {url:path(location.href),visibility:document.visibilityState,width:innerWidth,height:innerHeight,headers:document.querySelectorAll('header,[role=banner]').length,links,creditHeadings:[...document.querySelectorAll('h1,h2,h3,h4')].filter(element=>/^credit balance$/i.test(clean(element.textContent))).map(element=>({tag:element.tagName,rects:element.getClientRects().length,parents:parents(element)})),loginButton:!![...document.querySelectorAll('button')].find(element=>/^continue with (google|email)$/i.test(clean(element.textContent)))};
+              const structure=element=>({tag:element.tagName,role:element.getAttribute('role'),text:/^(?:api credit balance|credit balance|\$\s*-?[\d,.]+)$/i.test(clean(element.innerText))?clean(element.innerText):null,children:[...element.children].slice(0,8).map(child=>({tag:child.tagName,role:child.getAttribute('role'),text:/^(?:api credit balance|credit balance|\$\s*-?[\d,.]+)$/i.test(clean(child.innerText))?clean(child.innerText):null,children:[...child.children].slice(0,8).map(node=>({tag:node.tagName,role:node.getAttribute('role')}))}))});
+              const fields=[...document.querySelectorAll('span,p,div,h1,h2,h3,h4,dt,label')].filter(element=>/^(?:api credit balance|credit balance|available credits|remaining credits|current balance|credits)$/i.test(clean(element.textContent))).slice(0,12).map(element=>({tag:element.tagName,heading:clean(element.textContent),rects:element.getClientRects().length,parents:parents(element),container:structure(element.parentElement),nearbyAmounts:[...clean(element.parentElement?.innerText).matchAll(/\$\s*-?[\d,.]+/g)].map(match=>match[0]).slice(0,4)}));
+              const text=clean(document.body?.innerText);
+              return {url:path(location.href),visibility:document.visibilityState,width:innerWidth,height:innerHeight,readyState:document.readyState,title:document.title,bodyChildren:document.body?.children.length,challenge:/verify you are human|checking your browser|just a moment|enable javascript and cookies/i.test(text),applicationError:/application error|client-side exception|something went wrong/i.test(text),headers:document.querySelectorAll('header,[role=banner]').length,links,fields,loginButton:!![...document.querySelectorAll('button')].find(element=>/^continue with (google|email)$/i.test(clean(element.textContent)))};
             })()
             """);
         return (last, diagnostic);

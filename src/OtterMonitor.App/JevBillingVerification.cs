@@ -15,8 +15,11 @@ public sealed partial class BillingBrowser
         using var browser = new BillingBrowser(directory, message => { cache.Apply(message, DateTime.UtcNow); messages.Add(message); return true; }, message => { if (message is not null) errors.Add(message); }, fixture: true, jev: true);
         await browser.StartAsync();
         var core = browser.controller!.CoreWebView2;
-        Check(!browser.window.IsVisible && !browser.controller.IsVisible && browser.OverviewUrl == JevBillingNavigation.OverviewUrl, "JEV has its own hidden Billing session");
+        Check(!browser.window.IsVisible && browser.controller.IsVisible && browser.OverviewUrl == JevBillingNavigation.OverviewUrl, "JEV keeps its renderer active in its own hidden Billing session");
         string Card(string amount) => "<section><div><div><h3>Available credits</h3></div></div><div><span>" + amount + "</span></div><p><button>Balance includes expiring credits</button></p><div><button>Add funds $100</button><button>Redeem code</button><button><span>Auto-recharge $50</span></button></div></section>";
+        Check(await core.ExecuteScriptAsync("document.visibilityState === 'visible'") == "true", "Hidden JEV host permits visibility-gated account loading");
+        await Load("<div id='balance'></div><script>if(document.visibilityState === 'visible') document.getElementById('balance').innerHTML = " + System.Text.Json.JsonSerializer.Serialize(Card("$6.25")) + ";</script>");
+        Check(messages.LastOrDefault() is { State: "ok", Amount: "6.25" }, "Visibility-gated JEV balance loads before the Billing window is ever shown");
         await Load("<div role='dialog' aria-label='Settings'><h1>Billing</h1>" + Card("$5.00") + "<section aria-label='Billing history'><table><tr><td>$99.00</td><td>$12.00</td></tr></table></section></div>");
         Check(messages.LastOrDefault() is { State: "ok", Amount: "5.00" }, "Available credits wins over billing history and payment controls inside the real settings dialog");
         var received = messages.Count; var observed = cache.Read()!.ObservedUtc;

@@ -45,6 +45,8 @@ internal static class BalanceTests
         {
             var url = JevBillingNavigation.OverviewUrl;
             check(JevBillingNavigation.IsOverview(url + "/?x=1") && JevBillingNavigation.IsHome("https://console.typesafe.ai/home"), "JEV routes rejected.");
+            check(JevBillingNavigation.IsOverview("https://console.typesafe.ai/billing/?x=1")
+                && JevBillingNavigation.CanAutoRefresh("https://console.typesafe.ai/billing", false, false, false), "Redirected JEV Billing cannot be read/refreshed.");
             foreach (var other in new[] { "http://console.typesafe.ai/settings/billing", "https://console.typesafe.ai:8443/settings/billing", "https://console.typesafe.ai.evil.test/settings/billing", "https://console.typesafe.ai/usage", "https://console.typesafe.ai/settings/billing/history" })
                 check(!JevBillingNavigation.IsOverview(other), "Unrelated JEV route accepted.");
             check(JevBillingNavigation.StateFor("https://console.typesafe.ai/login?returnTo=/settings/billing") == "login_required"

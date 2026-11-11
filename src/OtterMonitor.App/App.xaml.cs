@@ -13,14 +13,14 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Contains("--read-anthropic-balance"))
+        if (e.Args.Contains("--read-anthropic-balance") || e.Args.Contains("--read-openai-balance") || e.Args.Contains("--read-jev-balance"))
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var rootIndex = Array.IndexOf(e.Args, "--data-root"); var reportIndex = Array.IndexOf(e.Args, "--report");
             if (rootIndex < 0 || reportIndex < 0 || rootIndex + 1 >= e.Args.Length || reportIndex + 1 >= e.Args.Length) { Shutdown(2); return; }
             try
             {
-                var result = await BillingBrowser.ReadAnthropicBalanceAsync(e.Args[rootIndex + 1]);
+                var result = await BillingBrowser.ReadBalanceAsync(e.Args[rootIndex + 1], jev: e.Args.Contains("--read-jev-balance"), anthropic: e.Args.Contains("--read-anthropic-balance"));
                 File.WriteAllText(e.Args[reportIndex + 1], System.Text.Json.JsonSerializer.Serialize(result.Message, BalanceStore.JsonOptions));
                 if (result.Diagnostic is not null) File.WriteAllText(e.Args[reportIndex + 1] + ".diagnostic.json", result.Diagnostic);
                 Shutdown(result.Message.State == "ok" ? 0 : 1);

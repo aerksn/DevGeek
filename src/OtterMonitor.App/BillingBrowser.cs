@@ -94,9 +94,9 @@ public sealed partial class BillingBrowser : IDisposable
             var created = await environment.CreateCoreWebView2ControllerAsync(handle, options);
             if (disposed) { created.Close(); return; }
             controller = created;
-            // Claude Console gates account data on document visibility. Keep its renderer
+            // Billing pages gate account data on document visibility. Keep the renderer
             // active inside the hidden native host; the Billing window itself remains hidden.
-            controller.IsVisible = anthropic; Resize();
+            controller.IsVisible = true; Resize();
             var core = controller.CoreWebView2;
             ConfigureFixture(core, environment);
             core.Settings.IsPasswordAutosaveEnabled = false;
@@ -326,7 +326,7 @@ public sealed partial class BillingBrowser : IDisposable
     private void UpdateVisibility()
     {
         var visible = window.IsVisible && window.WindowState != WindowState.Minimized;
-        if (controller is not null) controller.IsVisible = anthropic || visible;
+        if (controller is not null) controller.IsVisible = true;
         if (!visible) foreach (var popup in authPopups.ToArray()) popup.Dispose();
     }
     private void Resize()
@@ -354,7 +354,7 @@ public sealed partial class BillingBrowser : IDisposable
         var accepting = true;
         using var browser = new BillingBrowser(directory, value => { if (!accepting) return false; messages.Add(value); return true; }, value => { if (value is not null) errors.Add(value); }, fixture: true);
         await browser.StartAsync();
-        Check(browser.controller is not null && !browser.controller.IsVisible && !browser.window.IsVisible, "Own WebView2 starts hidden with an isolated profile");
+        Check(browser.controller is not null && browser.controller.IsVisible && !browser.window.IsVisible, "Own WebView2 keeps its renderer active inside a hidden isolated host");
         async Task Load(string html, bool automaticReload = false)
         {
             var complete = new TaskCompletionSource<bool>();
@@ -373,8 +373,13 @@ public sealed partial class BillingBrowser : IDisposable
             while (browser.reading || browser.navigating) { if (DateTime.UtcNow > until) throw new TimeoutException("Reader did not finish."); await Task.Delay(50); }
             await browser.ObserveAsync();
         }
-        await Load("<div><span><span>API credit balance</span></span><div>$24.50</div></div><p>When credits reach $0, requests stop.</p><button>Buy credits</button>");
+        Check(await browser.controller!.CoreWebView2.ExecuteScriptAsync("document.visibilityState === 'visible'") == "true", "Hidden OpenAI host permits visibility-gated account loading");
+        await Load("<div id='balance'></div><script>if(document.visibilityState === 'visible') document.getElementById('balance').innerHTML = '<span><span>API credit balance</span></span><div>$24.50</div>';</script><p>When credits reach $0, requests stop.</p><button>Buy credits</button>");
         Check(messages.LastOrDefault() is { State: "ok", Amount: "24.50" }, "Hidden real DOM reads the credit card, excluding the warning");
+        await Load("<div><span><span>API credit balance</span><svg></svg></span><div><div>$8.26</div><a href='/buy'>Buy credits</a></div></div><p>When credits reach $0, requests stop.</p>");
+        Check(messages.LastOrDefault() is { State: "ok", Amount: "8.26" }, "Current OpenAI card permits its adjacent Buy credits link");
+        await Load("<div><span>API credit balance</span><div><a href='/buy'>Buy credits $100</a></div></div>");
+        Check(messages.LastOrDefault() is { State: "unreadable" }, "A payment link without an account amount is never read as a balance");
         var count = messages.Count; await browser.ObserveAsync();
         Check(messages.Count == count, "Repeated polling does not renew an unchanged DOM reading");
         await Load("<div><span><span>API credit balance</span></span><div>$19.25</div></div>", automaticReload: true);
@@ -386,7 +391,7 @@ public sealed partial class BillingBrowser : IDisposable
         Check(messages.Count == previousCount, "A failed local save is not treated as a delivered reading");
         accepting = true; await browser.ObserveAsync();
         Check(messages.LastOrDefault() is { State: "ok", Amount: "18.00" }, "A reading is retried after local storage recovers");
-        Check(!browser.window.IsVisible && !browser.controller!.IsVisible && errors.Count == 0, "All navigation and reads finish with no visible browser window");
+        Check(!browser.window.IsVisible && browser.controller!.IsVisible && errors.Count == 0, "All navigation and reads finish with an active renderer and no visible browser window");
         return string.Join(Environment.NewLine, checks);
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); checks.Add("PASS " + name); }
     }

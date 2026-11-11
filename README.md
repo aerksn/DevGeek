@@ -8,6 +8,12 @@ En liten Windows-app för lokala utvecklingsportar och snabbstarter. Byggd i C# 
 
 ### Nytt i 1.7
 
+1.7.5 ger API-saldona jämna mellanrum och gemensam höjd för ikoner och text, så att alla tre leverantörer ligger i linje.
+
+1.7.4 samlar API-ikoner och saldon tätt till vänster. Ledigt utrymme hamnar efter saldona så att bredare fönster inte ökar mellanrummen mellan leverantörerna. Äldre saldon markeras med en liten gul punkt i stället för text i överraden; detaljer finns kvar i muspekartipset.
+
+1.7.3 rättar Codex-kvoten för Microsoft Store-installationen och T3:s medföljande CLI. OpenAI- och JEV-saldon håller sidrenderingen aktiv även när Billing-fönstret är dolt. OpenAI-läsaren stöder saldokortets intilliggande köp-länk, och JEV stöder även den nya adressen `/billing`. API-raden visar leverantörernas ikoner, belopp och status utan namn, oavsett fönsterbredd; namn finns kvar i muspekartips och tillgänglighetsnamn.
+
 1.7.1 rättar Anthropics Google-inloggning: Googles popup får en riktig WebView2-barnvy med samma profil och bevarad `window.opener`, i stället för att ersätta Billing-sidan. Återkoppling med `postMessage`, start från `about:blank` och automatisk stängning testas med lokala syntetiska sidor; testet använder inga riktiga inloggningsuppgifter.
 
 1.7.2 läser totalsaldot från Claude Consoles monetära Billing-länk i sidhuvudet. Den aktuella layouten visar köpta och kampanjkrediter separat i saldokortet; appen använder Anthropics eget totalsaldo och summerar inte belopp från fakturor eller kampanjtabellen. Kampanjkrediter kan vara begränsade till vissa modeller och produkter. Den äldre enkla saldokortslayouten stöds fortfarande. En misslyckad avläsning utan tidigare saldo visas som **unavailable** i stället för **waiting**.

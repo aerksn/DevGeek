@@ -11,14 +11,22 @@ public partial class MainWindow
         BalanceButton.Visibility = visible.OpenAi ? Visibility.Visible : Visibility.Collapsed;
         JevBalanceButton.Visibility = visible.Jev ? Visibility.Visible : Visibility.Collapsed;
         AnthropicBalanceButton.Visibility = visible.Anthropic ? Visibility.Visible : Visibility.Collapsed;
-        AnthropicBalanceColumn.Width = visible.Anthropic ? new GridLength(1.35, GridUnitType.Star) : new GridLength(0);
-        OpenAiBalanceColumn.Width = visible.OpenAi ? new GridLength(1.2, GridUnitType.Star) : new GridLength(0);
-        JevBalanceColumn.Width = visible.Jev ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-        OpenAiBalanceColumn.MaxWidth = visible.Jev ? 130 : 220;
-        JevBalanceColumn.MaxWidth = visible.OpenAi ? 110 : 220;
-        BalanceCaptionColumn.Width = visible.OpenAi || visible.Jev || visible.Anthropic ? new GridLength(24) : new GridLength(1, GridUnitType.Star);
+        AnthropicBalanceColumn.Width = visible.Anthropic ? GridLength.Auto : new GridLength(0);
+        OpenAiBalanceColumn.Width = visible.OpenAi ? GridLength.Auto : new GridLength(0);
+        JevBalanceColumn.Width = visible.Jev ? GridLength.Auto : new GridLength(0);
+        BalanceCaptionColumn.Width = new GridLength(1, GridUnitType.Star);
+        SizeApiBalances();
         Changed(nameof(OpenAiHeaderLabel)); Changed(nameof(JevHeaderLabel)); Changed(nameof(AnthropicHeaderLabel));
         LayoutAssistantUsage();
+    }
+    private void SizeApiBalances()
+    {
+        var visible = settings.Visibility;
+        var count = (visible.OpenAi ? 1 : 0) + (visible.Jev ? 1 : 0) + (visible.Anthropic ? 1 : 0);
+        var available = count == 0 ? 0 : Math.Max(0, CompactDragArea.ActualWidth - 24) / count;
+        OpenAiBalanceColumn.MaxWidth = Math.Min(visible.Jev ? 130 : 220, available);
+        JevBalanceColumn.MaxWidth = Math.Min(visible.OpenAi ? 110 : 220, available);
+        AnthropicBalanceColumn.MaxWidth = Math.Min(150, available);
     }
     private bool SetDashboardVisibility(DashboardVisibility visible)
     {

@@ -60,6 +60,25 @@
     </Style>
     <DataTemplate x:Key="ServiceStatusTemplate"><StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Hint}"><TextBlock Text="●" Style="{StaticResource ServiceStatus}" FontSize="7" Margin="0,0,4,0" VerticalAlignment="Center" /><TextBlock Text="{Binding StatusText}" Style="{StaticResource ServiceStatus}" /></StackPanel></DataTemplate>
     <BooleanToVisibilityConverter x:Key="Visible" />
+    <Style x:Key="BalanceStaleIndicator" TargetType="Ellipse">
+      <Setter Property="Width" Value="4" /><Setter Property="Height" Value="4" />
+      <Setter Property="Fill" Value="#E4CEA0" /><Setter Property="Margin" Value="4,0,0,0" />
+      <Setter Property="VerticalAlignment" Value="Center" /><Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style x:Key="ApiBalanceButton" TargetType="Button" BasedOn="{StaticResource UsageButton}">
+      <Setter Property="Height" Value="26" /><Setter Property="Padding" Value="6,0" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style x:Key="ApiBalanceIcon" TargetType="Path">
+      <Setter Property="Fill" Value="#FFFFFF" /><Setter Property="Width" Value="14" /><Setter Property="Height" Value="14" />
+      <Setter Property="Stretch" Value="Uniform" /><Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" /><Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+    <Style x:Key="ApiBalanceAmount" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="10" /><Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" /><Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
     <Style x:Key="RowActionButton" TargetType="Button">
       <Setter Property="FocusVisualStyle" Value="{x:Null}" />
       <Setter Property="Width" Value="22" /><Setter Property="Height" Value="16" /><Setter Property="Margin" Value="0,0,2,0" /><Setter Property="IsTabStop" Value="False" />
@@ -221,15 +240,30 @@
             </Grid.ColumnDefinitions>
             <Border x:Name="CompactDragArea" Background="Transparent" Height="26" shell:WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="{Binding BalanceHint}">
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition x:Name="OpenAiBalanceColumn" Width="1.2*" MaxWidth="130" /><ColumnDefinition x:Name="JevBalanceColumn" Width="*" MaxWidth="110" /><ColumnDefinition x:Name="AnthropicBalanceColumn" Width="1.35*" MaxWidth="150" /><ColumnDefinition x:Name="BalanceCaptionColumn" Width="24" /></Grid.ColumnDefinitions>
-                <Button x:Name="BalanceButton" Click="Balance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'OpenAI-saldo och koppling'}" ToolTip="{Binding BalanceHint}">
-                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="OpenAiLogo" Data="{StaticResource OpenAiBlossom}" Fill="#FFFFFF" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" /><TextBlock x:Name="CompactBalanceText" Grid.Column="1" Text="{Binding OpenAiHeaderLabel}" IsHitTestVisible="False" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition x:Name="OpenAiBalanceColumn" Width="Auto" MaxWidth="130" /><ColumnDefinition x:Name="JevBalanceColumn" Width="Auto" MaxWidth="110" /><ColumnDefinition x:Name="AnthropicBalanceColumn" Width="Auto" MaxWidth="150" /><ColumnDefinition x:Name="BalanceCaptionColumn" Width="*" MinWidth="24" /></Grid.ColumnDefinitions>
+                <Button x:Name="BalanceButton" Click="Balance_Click" Style="{StaticResource ApiBalanceButton}" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'OpenAI-saldo och koppling'}" ToolTip="{Binding BalanceHint}">
+                  <Grid Height="18" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"><Path x:Name="OpenAiLogo" Data="{StaticResource OpenAiBlossom}" Style="{StaticResource ApiBalanceIcon}" /></Border>
+                    <TextBlock x:Name="CompactBalanceText" Grid.Column="1" Text="{Binding OpenAiHeaderLabel}" Style="{StaticResource ApiBalanceAmount}" />
+                    <Ellipse x:Name="OpenAiStaleIndicator" Grid.Column="2" Style="{StaticResource BalanceStaleIndicator}" Visibility="{Binding OpenAiBalanceIsStale, Converter={StaticResource Visible}}" />
+                  </Grid>
                 </Button>
-                <Button x:Name="JevBalanceButton" Grid.Column="1" Click="JevBalance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'JEV-saldo och koppling'}" ToolTip="{Binding JevBalanceHint}">
-                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="JevLogo" Data="{StaticResource JevMark}" Fill="#FFFFFF" Width="12" Height="15" Stretch="Uniform" Margin="0,0,5,0" IsHitTestVisible="False" /><TextBlock x:Name="CompactJevBalanceText" Grid.Column="1" Text="{Binding JevHeaderLabel}" IsHitTestVisible="False" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
+                <Button x:Name="JevBalanceButton" Grid.Column="1" Click="JevBalance_Click" Style="{StaticResource ApiBalanceButton}" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'JEV-saldo och koppling'}" ToolTip="{Binding JevBalanceHint}">
+                  <Grid Height="18" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"><Path x:Name="JevLogo" Data="{StaticResource JevMark}" Style="{StaticResource ApiBalanceIcon}" Width="12" /></Border>
+                    <TextBlock x:Name="CompactJevBalanceText" Grid.Column="1" Text="{Binding JevHeaderLabel}" Style="{StaticResource ApiBalanceAmount}" />
+                    <Ellipse x:Name="JevStaleIndicator" Grid.Column="2" Style="{StaticResource BalanceStaleIndicator}" Visibility="{Binding JevBalanceIsStale, Converter={StaticResource Visible}}" />
+                  </Grid>
                 </Button>
-                <Button x:Name="AnthropicBalanceButton" Grid.Column="2" Click="AnthropicBalance_Click" Style="{StaticResource UsageButton}" Height="26" Padding="6,0" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'Anthropic API-saldo och koppling'}" ToolTip="{Binding AnthropicBalanceHint}">
-                  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /></Grid.ColumnDefinitions><Path x:Name="ClaudeLogo" Data="{StaticResource ClaudeMark}" Fill="#FFFFFF" Width="14" Height="14" Stretch="Uniform" Margin="0,0,5,0" IsHitTestVisible="False" /><TextBlock Grid.Column="1" Text="{Binding AnthropicHeaderLabel}" VerticalAlignment="Center" FontSize="10" Foreground="{StaticResource AccentBrush}" TextTrimming="CharacterEllipsis" /></Grid>
+                <Button x:Name="AnthropicBalanceButton" Grid.Column="2" Click="AnthropicBalance_Click" Style="{StaticResource ApiBalanceButton}" shell:WindowChrome.IsHitTestVisibleInChrome="True" AutomationProperties.Name="{local:Loc 'Anthropic API-saldo och koppling'}" ToolTip="{Binding AnthropicBalanceHint}">
+                  <Grid Height="18" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"><Path x:Name="ClaudeLogo" Data="{StaticResource ClaudeMark}" Style="{StaticResource ApiBalanceIcon}" /></Border>
+                    <TextBlock Grid.Column="1" Text="{Binding AnthropicHeaderLabel}" Style="{StaticResource ApiBalanceAmount}" />
+                    <Ellipse x:Name="AnthropicStaleIndicator" Grid.Column="2" Style="{StaticResource BalanceStaleIndicator}" Visibility="{Binding AnthropicBalanceIsStale, Converter={StaticResource Visible}}" />
+                  </Grid>
                 </Button>
                 <Border x:Name="CompactCaptionArea" Grid.Column="3" Background="Transparent" shell:WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="{local:Loc 'Dra i överraden för att flytta fönstret · Börja skriva för att filtrera'}" />
               </Grid>
