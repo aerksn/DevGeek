@@ -131,8 +131,8 @@ public partial class MainWindow
     private void TrackQuotaNotices()
     {
         var now = DateTimeOffset.UtcNow;
-        foreach (var notice in notices.Quota("Codex", assistantActivity.CodexRunning ? codexQuota : null, now, TimeSpan.FromMinutes(2)).ToList()) Notify(notice);
-        foreach (var notice in notices.Quota("Claude", assistantActivity.ClaudeRunning ? claudeQuota : null, now, TimeSpan.FromMinutes(5)).ToList()) Notify(notice);
+        foreach (var notice in notices.Quota("Codex", codexQuota, now, TimeSpan.FromMinutes(2)).ToList()) Notify(notice);
+        foreach (var notice in notices.Quota("Claude", claudeQuota, now, TimeSpan.FromMinutes(5)).ToList()) Notify(notice);
     }
 
     private void UpdateTray()

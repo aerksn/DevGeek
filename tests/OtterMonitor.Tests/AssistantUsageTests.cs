@@ -109,6 +109,26 @@ internal static class AssistantUsageTests
             return Task.CompletedTask;
         });
 
+        await test("Codex discovery finds standalone and T3 installations without running processes or PATH entries", () =>
+        {
+            var directory = Path.Combine(root, "codex-discovery", ".t3", "tools", "codex");
+            var older = Path.Combine(directory, "0.99.0", "bin", "codex.exe");
+            var newer = Path.Combine(directory, "0.166.0", "bin", "codex.exe");
+            foreach (var path in new[] { older, newer }) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, "fixture only"); }
+            check(AssistantProcesses.FindCodexCli([directory], "") == newer, "T3 discovery did not select the latest installed version.");
+            var standalone = Path.Combine(root, "codex-discovery", ".local", "bin", "codex.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(standalone)!); File.WriteAllText(standalone, "fixture only");
+            check(AssistantProcesses.FindCodexCli([Path.GetDirectoryName(standalone)!], "") == standalone, "A standalone CLI required a running process.");
+            check(AssistantProcesses.FindCodexCli([directory], Path.GetDirectoryName(standalone)) == standalone, "Explicit PATH lookup was not respected.");
+            var package = Path.Combine(root, "codex-discovery", "WindowsApps", "OpenAI.Codex_26.1103.7773.0_x64__example", "app");
+            Directory.CreateDirectory(package); File.WriteAllText(Path.Combine(package, "Codex.exe"), "desktop fixture");
+            check(AssistantProcesses.FindCodexCli([package], "") is null, "The desktop executable was mistaken for a CLI.");
+            var native = Path.Combine(package, "resources", "codex.exe"); Directory.CreateDirectory(Path.GetDirectoryName(native)!); File.WriteAllText(native, "CLI fixture");
+            check(AssistantProcesses.FindCodexCli([package], "") == native, "An inactive Store installation was not discovered.");
+            check(AssistantProcesses.FindCodexCli([Path.Combine(root, "missing-cli")], "") is null, "A missing installation invented a CLI path.");
+            return Task.CompletedTask;
+        });
+
         await test("Native Claude visibility appears while a CLI process runs and disappears after that process exits", async () =>
         {
             var baseline = AssistantProcesses.Scan().ClaudeCliRunning;

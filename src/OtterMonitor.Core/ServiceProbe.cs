@@ -33,10 +33,11 @@ public sealed class ServiceProbe : IDisposable
         if (entry.IsDocker) return entry.ContainerPort is 80 or 443 or 3000 or 3001 or 3002 or 3210 or 3211 or 5000 or 5173 or 8000 or 8001 or 8080 or 8443 or 9000 or 11434;
         return entry.Name.ToLowerInvariant() is "node" or "bun" or "deno" or "dotnet" or "python" or "python3" or "nginx" or "httpd" or "caddy" or "vite" or "next-server";
     }
-    public async Task<ProbeReading> MeasureAsync(IReadOnlyList<PortEntry> entries, CancellationToken cancellationToken = default)
+    public async Task<ProbeReading> MeasureAsync(IReadOnlyList<PortEntry> entries, CancellationToken cancellationToken = default,
+        BrowserAddressMode browserAddress = BrowserAddressMode.DetectedIp)
     {
-        var tcp = entries.Where(entry => entry.Protocol == "tcp").GroupBy(entry => entry.Port)
-            .Select(group => group.OrderBy(entry => entry.Address.Contains(':')).ThenBy(entry => entry.Address is not "127.0.0.1" and not "::1").ToList()).ToList();
+        var tcp = WebServiceOpener.ProbeEntries(entries, browserAddress).Where(entry => entry.Protocol == "tcp").GroupBy(entry => entry.Port)
+            .Select(group => group.ToList()).ToList();
         if (tcp.Count == 0)
         {
             var udpHealth = entries.FirstOrDefault()?.ContainerHealth;
@@ -50,12 +51,17 @@ public sealed class ServiceProbe : IDisposable
             try
             {
                 Result? result = null;
+                Result? reachable = null;
                 foreach (var entry in bindings)
                 {
                     result = await CheckAsync(entry, cancellationToken);
-                    if (result.Reachable == true) return result;
+                    if (result.WebUrl is not null) return result;
+                    // A preferred address may accept TCP but reject HTTP (for example by Host).
+                    // Keep checking the other bindings before falling back to TCP-only status.
+                    if (result.Reachable == true && !IsHttpCandidate(entry)) return result;
+                    if (result.Reachable == true) reachable ??= result;
                 }
-                return result!;
+                return reachable ?? result!;
             }
             finally { slots.Release(); }
         }));

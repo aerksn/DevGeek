@@ -237,7 +237,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         probing = true;
         try
         {
-            var results = await Task.WhenAll(targets.Select(async target => (target.Key, target.Entries, Reading: await serviceProbe.MeasureAsync(target.Entries, telemetryStop.Token))));
+            var results = await Task.WhenAll(targets.Select(async target => (target.Key, target.Entries, Reading: await serviceProbe.MeasureAsync(target.Entries, telemetryStop.Token, settings.BrowserAddress))));
             if (closed) return;
             foreach (var result in results)
                 if (groupCache.TryGetValue(result.Key, out var group) && group.Entries.SequenceEqual(result.Entries)) { group.SetProbe(result.Reading); TrackServiceNotices(group, result.Reading); }
@@ -258,6 +258,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (groupCache.TryGetValue(group.Key, out var existing)) { existing.Update(group); next.Add(group.Key, existing); }
             else next.Add(group.Key, group);
+            next[group.Key].BrowserAddress = settings.BrowserAddress;
             next[group.Key].IsStopping = portActions.Contains(group.Key);
             if (!preview || captureLive)
             {
@@ -267,6 +268,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             else next[group.Key].RefreshTelemetry();
         }
         groupCache = next;
+        foreach (var dialog in OwnedWindows.OfType<SettingsWindow>()) dialog.RefreshBrowserAddressAvailability();
         LinkLaunches(next.Values);
         // A search looks through every listening port, also outside the development filter.
         var filtered = next.Values.Where(p => (query.Length > 0 || !developmentOnly || p.IsDevelopment) && p.Matches(query)).ToList();

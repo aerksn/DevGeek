@@ -17,7 +17,7 @@ namespace OtterMonitor.App;
 internal sealed class ClaudeUsageBrowser : IDisposable
 {
     private readonly Window window = new() { Title = "Otter Monitor · Claude usage", Width = 1000, Height = 760, MinWidth = 720, MinHeight = 500, WindowStartupLocation = WindowStartupLocation.CenterScreen };
-    private readonly TextBlock status = new() { Text = UiText.T("Logga in med samma Claude-konto som i appen."), Margin = new Thickness(12, 4, 12, 4), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
+    private readonly TextBlock status = new() { Text = UiText.T("Logga in med samma Claude-konto som i CLI:t eller T3."), Margin = new Thickness(12, 4, 12, 4), FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock address = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly DispatcherTimer observeTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
@@ -155,8 +155,8 @@ internal sealed class ClaudeUsageBrowser : IDisposable
         if (disposed) return;
         status.Text = value.State switch
         {
-            "ok" => UiText.F("Kvot avl\u00E4st {0:HH:mm:ss}. D\u00F6lj f\u00F6nstret f\u00F6r uppdatering varje minut medan Claude-appen k\u00F6rs.", DateTime.Now),
-            "login_required" => UiText.T("Logga in med samma Claude-konto som i appen. Sessionen sparas för nästa appstart."),
+            "ok" => UiText.F("Kvot avläst {0:HH:mm:ss}. Dölj fönstret för uppdatering varje minut även när Claude och T3 är stängda.", DateTime.Now),
+            "login_required" => UiText.T("Logga in med samma Claude-konto som i CLI:t eller T3. Sessionen sparas för nästa appstart."),
             "paused" => UiText.T("Välj Till användning för att läsa kontots kvot."),
             _ => UiText.T("Kvoten kunde inte läsas. Kontrollera inloggningen och att användningssidan har laddats.")
         };

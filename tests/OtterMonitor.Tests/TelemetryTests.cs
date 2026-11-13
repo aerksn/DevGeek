@@ -84,9 +84,12 @@ internal static class TelemetryTests
             check(result.Label == "HTTP 200" && result.Tone == ServiceTone.Good && result.Milliseconds >= 20, "HTTP status or response timing is incorrect.");
             check(server.Methods.SequenceEqual(["HEAD"]) && result.Hint.Contains(server.Port.ToString()), "Probe downloaded the page or omitted its target.");
             var url = WebServiceOpener.SelectUrl([server.Entry()], result, DateTime.UtcNow);
-            check(url is { Scheme: "http", Host: "127.0.0.1" } && url.Port == server.Port
+            check(url is { Scheme: "http", Host: "localhost" } && url.Port == server.Port
                 && WebServiceOpener.BrowserStart(url).FileName == url.AbsoluteUri && WebServiceOpener.BrowserStart(url).UseShellExecute,
-                "A verified HTTP response did not retain the exact local URL for the default browser.");
+                "A verified HTTP response did not produce a localhost URL for the default browser.");
+            using var client = new HttpClient(new SocketsHttpHandler { UseProxy = false });
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            check(response.IsSuccessStatusCode, "The localhost browser target could not reach the verified local server.");
         });
         await test("HEAD fallback handles 405 and HTTP failures remain visibly distinct from TCP reachability", async () =>
         {
@@ -97,6 +100,37 @@ internal static class TelemetryTests
             await using var missing = new HttpFixture(_ => 404);
             result = await probe.MeasureAsync([missing.Entry()]);
             check(result.Label == "HTTP 404" && result.Tone == ServiceTone.Warning, "A missing root route was silently treated as healthy.");
+        });
+        await test("Browser probes reach the requested IPv4 or IPv6 loopback and retain a working fallback", async () =>
+        {
+            await using var ipv4 = new HttpFixture(_ => 200);
+            await using var ipv6 = new HttpFixture(_ => 200, address: IPAddress.IPv6Loopback, port: ipv4.Port);
+            using var probe = new ServiceProbe();
+            var entries = new[] { ipv4.Entry(), ipv6.Entry() };
+            foreach (var mode in new[] { BrowserAddressMode.Ipv4, BrowserAddressMode.Ipv6 })
+            {
+                var reading = await probe.MeasureAsync(entries, browserAddress: mode);
+                var url = WebServiceOpener.SelectUrl(entries, reading, DateTime.UtcNow, mode);
+                check(url is not null && IPAddress.Parse(url.Host.Trim('[', ']')).Equals(mode == BrowserAddressMode.Ipv4 ? IPAddress.Loopback : IPAddress.IPv6Loopback),
+                    "The requested loopback address was not actually verified and selected.");
+            }
+            var fallback = await probe.MeasureAsync([ipv6.Entry()], browserAddress: BrowserAddressMode.Ipv4);
+            check(WebServiceOpener.SelectUrl([ipv6.Entry()], fallback, DateTime.UtcNow, BrowserAddressMode.Ipv4)?.Host == "[::1]",
+                "An IPv6-only service did not retain its verified address when IPv4 was preferred.");
+        });
+        await test("Network browser probes verify the machine IP only for a wildcard listener", async () =>
+        {
+            var address = WebServiceOpener.NetworkAddresses().FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork);
+            if (address is null) return;
+            await using var server = new HttpFixture(_ => 200, address: IPAddress.Any);
+            using var probe = new ServiceProbe();
+            var reading = await probe.MeasureAsync([server.Entry()], browserAddress: BrowserAddressMode.NetworkIp);
+            var url = WebServiceOpener.SelectUrl([server.Entry()], reading, DateTime.UtcNow, BrowserAddressMode.NetworkIp);
+            check(url?.Host == address.ToString() && reading.Label == "HTTP 200", "The machine IP was not confirmed through an actual HTTP request.");
+            await using var loopback = new HttpFixture(_ => 200);
+            reading = await probe.MeasureAsync([loopback.Entry()], browserAddress: BrowserAddressMode.NetworkIp);
+            check(WebServiceOpener.SelectUrl([loopback.Entry()], reading, DateTime.UtcNow, BrowserAddressMode.NetworkIp)?.Host == "127.0.0.1",
+                "A loopback-only service was converted into an unreachable network link.");
         });
         await test("Status checks deduplicate IPv4/IPv6, expose a failed port and handle UDP without sending", async () =>
         {
@@ -125,15 +159,20 @@ internal static class TelemetryTests
     }
     private sealed class HttpFixture : IAsyncDisposable
     {
-        private readonly TcpListener listener = new(IPAddress.Loopback, 0);
+        private readonly TcpListener listener;
         private readonly CancellationTokenSource stop = new();
         private readonly Task accepting;
         private readonly ConcurrentBag<Task> clients = [];
         private readonly Func<string, int> response; private readonly int delay;
         internal readonly ConcurrentQueue<string> Methods = new();
         internal int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
-        internal HttpFixture(Func<string, int> response, int delay = 0) { this.response = response; this.delay = delay; listener.Start(); accepting = AcceptAsync(); }
-        internal PortEntry Entry() => new(Port, "127.0.0.1", Environment.ProcessId, "node", "node", DateTime.UtcNow);
+        internal HttpFixture(Func<string, int> response, int delay = 0, IPAddress? address = null, int port = 0)
+        {
+            this.response = response; this.delay = delay; listener = new(address ?? IPAddress.Loopback, port);
+            if (listener.Server.AddressFamily == AddressFamily.InterNetworkV6) listener.Server.DualMode = false;
+            listener.Start(); accepting = AcceptAsync();
+        }
+        internal PortEntry Entry() => new(Port, ((IPEndPoint)listener.LocalEndpoint).Address.ToString(), Environment.ProcessId, "node", "node", DateTime.UtcNow);
         private async Task AcceptAsync()
         {
             try { while (!stop.IsCancellationRequested) { var client = await listener.AcceptTcpClientAsync(stop.Token); clients.Add(RespondAsync(client)); } }

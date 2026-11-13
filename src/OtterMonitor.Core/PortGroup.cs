@@ -8,6 +8,7 @@ public sealed class PortGroup : Observable
     private QuickStart? launch;
     private ResourceReading? resources;
     private ProbeReading probe = ProbeReading.Waiting;
+    private BrowserAddressMode browserAddress;
     public string Key { get; }
     public IReadOnlyList<PortEntry> Entries => entries;
     public string Name => entries[0].DisplayName;
@@ -18,8 +19,13 @@ public sealed class PortGroup : Observable
     public string ResourceSummary => $"RAM {resources?.MemoryText ?? "—"}  ·  CPU {resources?.CpuText ?? "—"}  ·  ↑ {resources?.Uptime(DateTime.UtcNow) ?? new ResourceReading(null, null, entries[0].StartedUtc, DateTime.UtcNow).Uptime(DateTime.UtcNow)}";
     public void SetResources(ResourceReading? value) { resources = value; RefreshTelemetry(); }
     public void SetProbe(ProbeReading value) { probe = value; RefreshTelemetry(); }
-    public Uri? BrowserUrl => WebServiceOpener.SelectUrl(entries, probe, DateTime.UtcNow);
-    public void RefreshTelemetry() { Changed(nameof(StatusText)); Changed(nameof(StatusTone)); Changed(nameof(ResourceSummary)); Changed(nameof(Hint)); }
+    public BrowserAddressMode BrowserAddress
+    {
+        get => browserAddress;
+        set { if (browserAddress == value) return; browserAddress = value; Changed(nameof(BrowserUrl)); Changed(nameof(Address)); }
+    }
+    public Uri? BrowserUrl => WebServiceOpener.SelectUrl(entries, probe, DateTime.UtcNow, BrowserAddress);
+    public void RefreshTelemetry() { Changed(nameof(StatusText)); Changed(nameof(StatusTone)); Changed(nameof(ResourceSummary)); Changed(nameof(Hint)); Changed(nameof(BrowserUrl)); Changed(nameof(Address)); }
     public bool IsDevelopment => entries.Any(p => p.IsDevelopment);
     public bool CanStop => !IsStopping && StopTarget is not null;
     public bool IsDocker => entries[0].IsDocker;

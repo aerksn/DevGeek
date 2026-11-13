@@ -46,9 +46,18 @@ public partial class MainWindow
         var previous = settings.Language; settings.Language = language == "sv" ? "sv" : "en";
         if (Save()) return true;
         settings.Language = previous; return false;
-    }), preview) { Owner = this };
+    }, SetBrowserAddress, mode => WebServiceOpener.CanUseAddress(groupCache.Values.SelectMany(group => group.Entries).ToArray(), mode)), preview) { Owner = this };
         dialog.ApplyAppearance(settings.Appearance, material.Enabled);
         return dialog;
+    }
+
+    private bool SetBrowserAddress(BrowserAddressMode mode)
+    {
+        var previous = settings.BrowserAddress; settings.BrowserAddress = mode;
+        if (!Save()) { settings.BrowserAddress = previous; return false; }
+        foreach (var group in groupCache.Values) group.BrowserAddress = mode;
+        _ = RefreshProbesAsync(force: true);
+        return true;
     }
 
     private async Task VerifyDashboardSettingsAsync(Action<bool, string> check)

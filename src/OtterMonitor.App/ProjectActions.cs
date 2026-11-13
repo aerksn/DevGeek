@@ -112,10 +112,10 @@ public partial class MainWindow
                 var owned = entries.Where(entry => current.Any(port => PortGroup.OwnerKey(port) == group.Key
                     && port.Port == entry.Port && port.Address == entry.Address && port.Protocol == entry.Protocol)).ToArray();
                 if (owned.Length == 0) { SetStatus(UiText.T("Processen lyssnar inte längre på de här portarna. Uppdatera portlistan."), problem: true); return; }
-                var reading = await serviceProbe.MeasureAsync(owned, telemetryStop.Token);
+                var reading = await serviceProbe.MeasureAsync(owned, telemetryStop.Token, settings.BrowserAddress);
                 if (closed || !group.Entries.SequenceEqual(entries)) return;
                 group.SetProbe(reading);
-                if (WebServiceOpener.SelectUrl(owned, reading, DateTime.UtcNow) is { } uri)
+                if (WebServiceOpener.SelectUrl(owned, reading, DateTime.UtcNow, settings.BrowserAddress) is { } uri)
                 {
                     WebServiceOpener.Open(uri);
                     SetStatus(UiText.T("Öppnade ") + uri + UiText.T(" för ") + group.Name + ".");
@@ -208,6 +208,7 @@ public partial class MainWindow
                 var webUri = new Uri("http://127.0.0.1:" + webGroup.Entries[0].Port + "/");
                 var browserCalls = new List<Uri>(); previewBrowserAction = browserCalls.Add;
                 webGroup.SetProbe(new("HTTP 200", ServiceTone.Good, 1, "Preview only", DateTime.UtcNow, [webUri]));
+                webUri = webGroup.BrowserUrl!;
                 calls.Clear();
                 var webStop = RowVisuals<Button>(webRow).Single(candidate => candidate.Name == "DenseStop");
                 check(TryOpenRow(webGroup, webRow, webName, 2) && !TryOpenRow(webGroup, webRow, webStop, 2)

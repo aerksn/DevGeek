@@ -38,9 +38,9 @@ if (args.FirstOrDefault() == "--verify-assistant-processes")
 }
 if (args.FirstOrDefault() == "--verify-live-usage")
 {
-    var activity = AssistantProcesses.Scan();
-    Console.WriteLine($"Codex active: {activity.CodexRunning}; Claude Code active: {activity.ClaudeRunning}; CLI found: {activity.CodexExecutable is not null}");
-    if (activity.CodexExecutable is { } cli)
+    var executable = AssistantProcesses.FindCodexCli();
+    Console.WriteLine($"Installed Codex CLI found without scanning running processes: {executable is not null}");
+    if (executable is { } cli)
     {
         var client = new CodexUsageClient();
         var quota = await client.ReadAsync(cli);

@@ -5,6 +5,24 @@ internal static class AppearanceTests
 {
     internal static async Task Run(string root, Func<string, Func<Task>, Task> test, Action<bool, string> check)
     {
+        await test("Browser address defaults migrate old settings and all five choices survive restart", () =>
+        {
+            var store = new SettingsStore(Path.Combine(root, "browser-address-settings")); Directory.CreateDirectory(store.DirectoryPath);
+            File.WriteAllText(store.FilePath, """{"Version":1,"QuickStarts":[]}""");
+            check(store.Load().BrowserAddress == BrowserAddressMode.Localhost, "Existing settings did not switch to localhost by default.");
+            File.WriteAllText(store.FilePath, """{"Version":1,"BrowserAddress":1,"QuickStarts":[]}""");
+            check(store.Load().BrowserAddress == BrowserAddressMode.DetectedIp, "The original detected-IP choice changed meaning during migration.");
+            foreach (var mode in Enum.GetValues<BrowserAddressMode>())
+            {
+                var settings = new Settings { BrowserAddress = mode, Language = "sv", Editor = "zed", Topmost = true };
+                store.Save(settings); var restored = store.Load();
+                check(restored.BrowserAddress == mode && restored.Language == "sv" && restored.Editor == "zed" && restored.Topmost,
+                    "The browser address choice did not survive restart or changed unrelated preferences.");
+            }
+            store.Save(new Settings { BrowserAddress = (BrowserAddressMode)99 });
+            check(store.Load().BrowserAddress == BrowserAddressMode.Localhost, "An unknown address choice did not fall back to localhost.");
+            return Task.CompletedTask;
+        });
         await test("Visibility defaults keep existing dashboards visible and survive restart independently of account connections", () =>
         {
             var store = new SettingsStore(Path.Combine(root, "visibility-settings")); Directory.CreateDirectory(store.DirectoryPath);

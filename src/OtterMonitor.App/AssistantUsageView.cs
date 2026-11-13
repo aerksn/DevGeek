@@ -23,10 +23,11 @@ public partial class MainWindow
     private string? claudeDesktopError;
     private string claudeDesktopState = "pending";
     private DateTimeOffset nextClaudeStart;
-    private bool usageScanning, usageReading, codexWasRunning, claudeConnected;
+    private bool usageScanning, usageReading, claudeConnected;
     private DateTimeOffset nextCodexRead;
+    private DateTimeOffset nextCodexDiscovery;
+    private string? codexExecutable;
     private string? codexUsageError;
-    private AssistantActivity assistantActivity = new(false, false, null);
     private ClaudeUsageInstaller ClaudeBridge => new(store.DirectoryPath, ClaudeUsageInstaller.DefaultSettingsFile, DataDirectory.Legacy);
 
     private async Task RefreshAssistantUsageAsync()
@@ -35,31 +36,21 @@ public partial class MainWindow
         usageScanning = true;
         try
         {
-            var activity = await Task.Run(() => AssistantProcesses.Scan(codexUsage.HelperPid));
+            if (DateTimeOffset.UtcNow >= nextCodexDiscovery)
+            {
+                codexExecutable = await Task.Run(() => AssistantProcesses.FindCodexCli());
+                nextCodexDiscovery = DateTimeOffset.UtcNow.AddMinutes(1);
+            }
             if (closed) return;
-            assistantActivity = activity;
-            if (activity.ClaudeRunning)
+            claudeConnected = settings.ClaudeUsageEnabled || ClaudeBridge.IsInstalled();
+            if (settings.ClaudeUsageEnabled)
             {
-                if (activity.ClaudeDesktopRunning)
-                {
-                    claudeConnected = settings.ClaudeUsageEnabled;
-                    if (claudeConnected && claudeBrowser is null && DateTimeOffset.UtcNow >= nextClaudeStart) await StartClaudeDesktopUsageAsync();
-                    claudeQuota = claudeDesktopQuota;
-                }
-                else
-                {
-                    claudeConnected = ClaudeBridge.IsInstalled();
-                    claudeQuota = claudeConnected ? AssistantUsage.ReadClaude(ClaudeBridge.CachePath) : null;
-                }
+                if (claudeBrowser is null && DateTimeOffset.UtcNow >= nextClaudeStart) await StartClaudeDesktopUsageAsync();
+                claudeQuota = claudeDesktopQuota;
             }
-            if (!activity.ClaudeDesktopRunning && claudeBrowser is { IsVisible: false } inactive)
-            {
-                try { await inactive.FlushSessionAsync(); } finally { inactive.Dispose(); if (claudeBrowser == inactive) claudeBrowser = null; }
-            }
-            if (activity.CodexRunning && !codexWasRunning) nextCodexRead = DateTimeOffset.MinValue;
-            codexWasRunning = activity.CodexRunning;
+            else claudeQuota = claudeConnected ? AssistantUsage.ReadClaude(ClaudeBridge.CachePath) : null;
             UpdateAssistantRows();
-            if (activity.CodexRunning && activity.CodexExecutable is { } executable && !usageReading && DateTimeOffset.UtcNow >= nextCodexRead)
+            if (codexExecutable is { } executable && !usageReading && DateTimeOffset.UtcNow >= nextCodexRead)
                 _ = ReadCodexUsageAsync(executable);
         }
         catch (Exception) { /* Denied process/config reads must not interfere with port monitoring. */ }
@@ -79,15 +70,13 @@ public partial class MainWindow
     private void UpdateAssistantRows()
     {
         var rows = new List<AssistantUsageRow>();
-        if (assistantActivity.CodexRunning)
-            rows.Add(UsageRow("Codex", codexQuota, codexUsageError ?? (assistantActivity.CodexExecutable is null ? "Codex CLI saknas eller kunde inte hittas. Installera den lokala Codex-klienten." : null), UiText.T("Läser kvot…")));
-        if (assistantActivity.ClaudeRunning)
+        rows.Add(UsageRow("Codex", codexQuota, codexUsageError ?? (codexExecutable is null ? UiText.T("Codex CLI saknas eller kunde inte hittas. Installera den lokala Codex-klienten.") : null), UiText.T("Läser kvot…")));
         {
-            var row = UsageRow("Claude Code", claudeQuota, assistantActivity.ClaudeDesktopRunning ? claudeDesktopError : null,
-                !claudeConnected ? UiText.T("Klicka för att koppla") : assistantActivity.ClaudeDesktopRunning ? claudeDesktopState switch
+            var row = UsageRow("Claude Code", claudeQuota, settings.ClaudeUsageEnabled ? claudeDesktopError : null,
+                !claudeConnected ? UiText.T("Klicka för att koppla") : settings.ClaudeUsageEnabled ? claudeDesktopState switch
                 { "login_required" => UiText.T("Logga in"), "paused" => UiText.T("Öppna användning"), "unreadable" => UiText.T("Kan inte läsa kvot"), _ => UiText.T("Läser kvot…") } : UiText.T("Väntar på svar…"),
-                assistantActivity.ClaudeDesktopRunning ? UiText.T("Claude-appen är öppen. Kvoten läses från kontots användningssida i Otter Monitors egen session ungefär varje minut. Klicka för att logga in eller uppdatera; använd samma konto som i Claude-appen.") : null);
-            if (assistantActivity.ClaudeDesktopRunning && claudeQuota is null && claudeConnected && claudeDesktopState == "login_required")
+                settings.ClaudeUsageEnabled || !claudeConnected ? UiText.T("Kvoten läses från kontots användningssida i Otter Monitors egen session ungefär varje minut, även när Claude och T3 är stängda. Klicka för att logga in eller uppdatera; använd samma konto som i T3 eller Claude.") : null);
+            if (settings.ClaudeUsageEnabled && claudeQuota is null && claudeConnected && claudeDesktopState == "login_required")
                 row = row with { Value = UiText.T("Logga in"), CompactValue = UiText.T("Logga in") };
             rows.Add(row);
         }
@@ -110,7 +99,7 @@ public partial class MainWindow
             hint += $"{(multipleBuckets ? window.Name + " · " : "")}{window.Period}: " + (window.ResetsAt <= now ? UiText.T("återställningstid passerad, väntar på nytt värde")
                 : UiText.F("{0:0.#}% kvar ({1:0.#}% anv\u00E4nt)", window.Remaining, window.UsedPercent))
                 + (window.ResetsAt is { } reset ? UiText.F(". \u00C5terst\u00E4lls {0:ddd d MMM HH:mm}.", reset.ToLocalTime()) : UiText.T(". Återställningstid saknas.")) + "\n";
-        hint += source ?? (name == "Codex" ? UiText.T("Läses ungefär varje minut medan Codex körs. Klicka för att uppdatera.")
+        hint += source ?? (name == "Codex" ? UiText.T("Läses ungefär varje minut även när Codex och T3 är stängda. Klicka för att uppdatera.")
             : UiText.T("Uppdateras via Claude Codes statusrad efter vanliga svar. Saknade kvoter visas inte som noll. Kräver ett konto som lämnar rate_limits. Klicka för kopplingsinformation."));
         if (stale) hint += UiText.T("\nÄldre avläsning; kan ha ändrats sedan dess.");
         if (error is not null) hint += "\n" + error;
@@ -147,11 +136,10 @@ public partial class MainWindow
         if (preview || sender is not Button { DataContext: AssistantUsageRow row }) return;
         if (row.Name == "Codex")
         {
-            if (!usageReading && assistantActivity.CodexExecutable is { } executable) await ReadCodexUsageAsync(executable);
+            if (!usageReading && codexExecutable is { } executable) await ReadCodexUsageAsync(executable);
             else if (!usageReading) Dialogs.Info(this, "Codex", row.Hint);
             return;
         }
-        if (assistantActivity.ClaudeDesktopRunning)
         {
             try
             {
@@ -163,11 +151,7 @@ public partial class MainWindow
                 await claudeBrowser.ShowAsync(); UpdateAssistantRows();
             }
             catch (Exception ex) { Error(ex); }
-            return;
         }
-        if (claudeConnected) { Dialogs.Info(this, "Claude Code", row.Hint); return; }
-        try { ClaudeBridge.Install(); claudeConnected = true; UpdateAssistantRows(); SetStatus(UiText.T("Claude Code är kopplat. Kvoten visas efter nästa vanliga svar.")); }
-        catch (Exception ex) { Error(ex); }
     }
 
     private async Task StartClaudeDesktopUsageAsync()
@@ -183,7 +167,7 @@ public partial class MainWindow
                 // Keep an older reading marked as such when the page needs login or cannot be read.
                 claudeDesktopError = value.State is "ok" ? null : value.State == "login_required" ? UiText.T("Logga in i Claude-sessionen via kvotraden.")
                     : value.State == "paused" ? UiText.T("Öppna kontots användningssida via kvotraden.") : UiText.T("Claude-kvoten kunde inte läsas. Öppna kvotraden och kontrollera användningssidan.");
-                if (assistantActivity.ClaudeDesktopRunning) { claudeQuota = claudeDesktopQuota; UpdateAssistantRows(); }
+                claudeQuota = claudeDesktopQuota; UpdateAssistantRows();
             }, message =>
             {
                 if (closed || message is null) return;
@@ -223,29 +207,18 @@ public partial class MainWindow
             foreach (var compact in new[] { true })
             {
                 ConfigureCompactWindow();
-                foreach (var active in new[] { (false, false), (true, false), (false, true), (true, true) })
                 {
-                    assistantActivity = new(active.Item1, active.Item2, null); UpdateAssistantRows(); UpdateLayout();
-                    check(AssistantRows.Count == (active.Item1 ? 1 : 0) + (active.Item2 ? 1 : 0)
-                        && (UsageSection.Visibility == Visibility.Collapsed) == (!active.Item1 && !active.Item2)
-                        && AssistantRows.Any(row => row.Name == "Codex") == active.Item1 && AssistantRows.Any(row => row.Name == "Claude Code") == active.Item2,
-                        $"{(compact ? "Compact" : "Standard")} usage visibility follows Codex={active.Item1}, Claude={active.Item2}");
+                    UpdateAssistantRows(); UpdateLayout();
+                    check(AssistantRows.Count == 2 && UsageSection.IsVisible
+                        && AssistantRows.Any(row => row.Name == "Codex") && AssistantRows.Any(row => row.Name == "Claude Code"),
+                        "Both account allowances remain visible without running assistant apps or a discovered CLI");
                     check(DenseScroll.ViewportHeight >= 132
                         && (!UsageSection.IsVisible || UsageSection.TranslatePoint(new Point(0, UsageSection.ActualHeight), this).Y <= ActualHeight),
                         $"{(compact ? "Compact" : "Standard")} reserves three port rows with {AssistantRows.Count} usage rows");
                     if (compact)
                     {
-                        check(CompactCodexUsage.IsVisible == active.Item1 && CompactClaudeUsage.IsVisible == active.Item2
-                            && UsageDivider.IsVisible == (active.Item1 && active.Item2),
-                            $"Compact fixed footer slots and divider follow Codex={active.Item1}, Claude={active.Item2}");
-                        if (active.Item1 != active.Item2)
-                        {
-                            var single = active.Item1 ? CompactCodexUsage : CompactClaudeUsage;
-                            check(Grid.GetColumn(single) == 0 && Grid.GetColumnSpan(single) == 3
-                                && Math.Abs(single.ActualWidth - CompactUsageBar.ActualWidth) <= 1
-                                && Math.Abs(single.TranslatePoint(new Point(0, 0), CompactUsageBar).X) <= 1,
-                                $"A lone {(active.Item1 ? "Codex" : "Claude")} quota fills the entire compact footer");
-                        }
+                        check(CompactCodexUsage.IsVisible && CompactClaudeUsage.IsVisible && UsageDivider.IsVisible,
+                            "Both fixed footer slots stay visible independently of assistant process activity");
                     }
                 }
                 var buttons = RowVisuals<Button>(UsageSection).Where(button => button.IsVisible).ToList();
@@ -278,13 +251,15 @@ public partial class MainWindow
             }
             var expired = UsageRow("Claude Code", new(now.AddHours(-1), [new("Claude Code", 0, 300, now.AddMinutes(-1))]), null, "");
             check(expired.Value.Contains("—") && expired.Value.Contains("äldre") && !expired.Value.Contains("100%"), "Expired and stale usage never invents freshly reset capacity");
-            assistantActivity = new(false, true, null, ClaudeDesktopRunning: true);
             claudeQuota = null; claudeConnected = false; UpdateAssistantRows();
             check(ClaudeUsageRow is { Value: "Klicka för att koppla" } && ClaudeUsageRow.Hint.Contains("samma konto") && !ClaudeUsageRow.Hint.Contains("statusrad"),
-                "A downloaded Claude app offers its own account connection instead of the terminal statusline");
+                "Claude offers its own account connection without a running desktop app or CLI");
+            var previousClaudeEnabled = settings.ClaudeUsageEnabled;
+            settings.ClaudeUsageEnabled = true;
             claudeConnected = true; claudeDesktopState = "login_required"; claudeDesktopError = "Logga in"; UpdateAssistantRows();
             check(ClaudeUsageRow is { Value: "Logga in", CompactValue: "Logga in" }, "The desktop quota clearly requests sign-in without inventing usage");
+            settings.ClaudeUsageEnabled = previousClaudeEnabled;
         }
-        finally { assistantActivity = new(false, false, null); codexQuota = claudeQuota = null; claudeDesktopError = null; claudeDesktopState = "pending"; ConfigureCompactWindow(); LoadUsagePreview(); UpdateLayout(); }
+        finally { codexQuota = claudeQuota = null; claudeDesktopError = null; claudeDesktopState = "pending"; ConfigureCompactWindow(); LoadUsagePreview(); UpdateLayout(); }
     }
 }

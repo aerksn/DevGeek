@@ -17,6 +17,7 @@ public sealed class SettingsStore(string directory)
         settings.Appearance = (settings.Appearance ?? new()).Normalize();
         settings.Visibility ??= new();
         settings.Language = settings.Language == "sv" ? "sv" : "en";
+        if (!Enum.IsDefined(settings.BrowserAddress)) settings.BrowserAddress = BrowserAddressMode.Localhost;
         return settings;
     }
 

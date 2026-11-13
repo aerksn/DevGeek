@@ -44,7 +44,7 @@ public static class AssistantProcesses
                 catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or ArgumentException or NotSupportedException) { }
             }
         }
-        if (codex && cli is null) cli = FindCli();
+        cli ??= FindCodexCli();
         return new(codex, claude || claudeDesktop, cli, claudeDesktop, claude);
     }
 
@@ -77,13 +77,52 @@ public static class AssistantProcesses
             || normalized.Contains("/codex-win32-", StringComparison.OrdinalIgnoreCase)
             || normalized.Contains("/.local/bin/", StringComparison.OrdinalIgnoreCase);
     }
-    private static string? FindCli()
+    public static string? FindCodexCli(IEnumerable<string>? searchRoots = null, string? searchPath = null)
     {
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        foreach (var directory in (searchPath ?? Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             try { var path = Path.Combine(directory.Trim('"'), "codex.exe"); if (File.Exists(path) && IsCodexCli(path)) return path; }
             catch (ArgumentException) { }
         }
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint, MaxRecursionDepth = 8 };
+        foreach (var root in searchRoots ?? CodexSearchRoots())
+        {
+            try
+            {
+                if (!Directory.Exists(root)) continue;
+                var path = Directory.EnumerateFiles(root, "codex.exe", options).Where(IsCodexCli)
+                    .OrderByDescending(InstallationVersion).ThenBy(path => path, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+                if (path is not null) return path;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+        }
         return null;
+    }
+
+    private static IEnumerable<string> CodexSearchRoots()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        yield return Path.Combine(home, ".t3", "tools", "codex");
+        yield return Path.Combine(home, ".local", "bin");
+        yield return Path.Combine(local, "Programs", "OpenAI", "Codex", "bin");
+        yield return Path.Combine(local, "OpenAI", "Codex", "bin");
+        yield return Path.Combine(roaming, "npm", "node_modules", "@openai", "codex");
+        var windowsApps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsApps");
+        string[] packages;
+        try { packages = Directory.GetDirectories(windowsApps, "OpenAI.Codex_*"); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { yield break; }
+        foreach (var package in packages.OrderByDescending(InstallationVersion)) yield return Path.Combine(package, "app", "resources");
+    }
+
+    private static Version InstallationVersion(string path)
+    {
+        foreach (var segment in path.Replace('\\', '/').Split('/'))
+        {
+            var value = segment.StartsWith("OpenAI.Codex_", StringComparison.OrdinalIgnoreCase) ? segment.Split('_')[1] : segment;
+            if (Version.TryParse(value, out var version)) return version;
+        }
+        return new(0, 0);
     }
 }

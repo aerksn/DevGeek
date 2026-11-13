@@ -69,6 +69,7 @@ public sealed class Settings
     public bool ClaudeUsageEnabled { get; set; }
     /// <summary>Editor id from <see cref="Editors"/>; null picks the first installed editor.</summary>
     public string? Editor { get; set; }
+    public BrowserAddressMode BrowserAddress { get; set; } = BrowserAddressMode.Localhost;
     public bool Notifications { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     /// <summary>Folders searched for projects in "Ny snabbstart"; null uses <see cref="ProjectScanner.DefaultRoots"/>.</summary>

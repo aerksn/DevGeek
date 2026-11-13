@@ -7,14 +7,17 @@ using OtterMonitor.Core;
 namespace OtterMonitor.App;
 
 internal sealed record SettingsActions(Func<DashboardVisibility, bool> Visibility, Func<string?, bool> Editor,
-    Func<bool, bool, bool> General, Func<AppearanceSettings, bool> Appearance, Action<SettingsWindow> Customize, Func<string, bool>? Language = null);
+    Func<bool, bool, bool> General, Func<AppearanceSettings, bool> Appearance, Action<SettingsWindow> Customize, Func<string, bool>? Language = null,
+    Func<BrowserAddressMode, bool>? BrowserAddress = null, Func<BrowserAddressMode, bool>? CanUseBrowserAddress = null);
 
 public partial class SettingsWindow : Window
 {
     private DashboardVisibility visibility;
     private readonly SettingsActions actions;
     private readonly Settings settings;
+    private readonly bool preview;
     private string? editorId;
+    private BrowserAddressMode browserAddress;
     private bool notifications, closeToTray;
     private AppearanceSettings appearanceValue;
     private readonly WindowMaterial material;
@@ -27,7 +30,8 @@ public partial class SettingsWindow : Window
 
     internal SettingsWindow(Settings settings, SettingsActions actions, bool preview)
     {
-        this.settings = settings; visibility = settings.Visibility; editorId = settings.Editor; notifications = settings.Notifications;
+        this.settings = settings; this.preview = preview; visibility = settings.Visibility; editorId = settings.Editor; notifications = settings.Notifications;
+        browserAddress = settings.BrowserAddress;
         closeToTray = settings.CloseToTray; appearanceValue = settings.Appearance; this.actions = actions;
         successHint = preview ? UiText.T("Förhandsvisning · dina inställningar ändras inte.") : UiText.T("Dina val sparas direkt.");
         InitializeComponent();
@@ -66,15 +70,47 @@ public partial class SettingsWindow : Window
             var button = Choice(mode.ToString(), mode, "background");
             button.Checked += Background_Changed; BackgroundChoices.Children.Add(button);
         }
+        foreach (var mode in new[] { BrowserAddressMode.Localhost, BrowserAddressMode.Ipv4, BrowserAddressMode.Ipv6, BrowserAddressMode.NetworkIp, BrowserAddressMode.DetectedIp })
+        {
+            var button = Choice(mode switch
+            {
+                BrowserAddressMode.Localhost => "localhost", BrowserAddressMode.Ipv4 => "IPv4 · 127.0.0.1",
+                BrowserAddressMode.Ipv6 => "IPv6 · [::1]", BrowserAddressMode.NetworkIp => UiText.T("Datorns nätverks-IP"),
+                _ => UiText.T("Upptäckt IP-adress")
+            }, mode, "browserAddress");
+            button.IsEnabled = preview || actions.CanUseBrowserAddress?.Invoke(mode) != false;
+            button.ToolTip = BrowserAddressHint(mode, button.IsEnabled);
+            ToolTipService.SetShowOnDisabled(button, true);
+            button.Checked += BrowserAddress_Changed; BrowserAddressChoices.Children.Add(button);
+        }
     }
     private RadioButton Choice(string text, object tag, string group) => new()
     { Content = text, Tag = tag, GroupName = group, Style = (Style)FindResource("ChoiceButton") };
+    internal void RefreshBrowserAddressAvailability()
+    {
+        foreach (var choice in BrowserAddressChoices.Children.OfType<RadioButton>())
+        {
+            choice.IsEnabled = preview || actions.CanUseBrowserAddress?.Invoke((BrowserAddressMode)choice.Tag) != false;
+            choice.ToolTip = BrowserAddressHint((BrowserAddressMode)choice.Tag, choice.IsEnabled);
+        }
+    }
+    private static string BrowserAddressHint(BrowserAddressMode mode, bool enabled) =>
+        !enabled ? UiText.T("Ingen aktuell webbtjänst stöder den här adresstypen.") : mode switch
+        {
+            BrowserAddressMode.Localhost => UiText.T("Använd localhost för loopback-adresser. Specifika nätverksadresser behålls."),
+            BrowserAddressMode.Ipv4 => UiText.T("Använd 127.0.0.1 när tjänsten lyssnar på IPv4-loopback."),
+            BrowserAddressMode.Ipv6 => UiText.T("Använd [::1] när tjänsten lyssnar på IPv6-loopback."),
+            BrowserAddressMode.NetworkIp => string.Join(", ", WebServiceOpener.NetworkAddresses()) is { Length: > 0 } addresses
+                ? addresses : UiText.T("Ingen nätverksadress hittades."),
+            _ => UiText.T("Använd adressen som svarade, till exempel 127.0.0.1 eller [::1].")
+        };
     private void SyncGeneral()
     {
         var previous = ready; ready = false;
         NotificationsToggle.IsChecked = notifications; TrayToggle.IsChecked = closeToTray;
         EnglishLanguage.IsChecked = settings.Language != "sv"; SwedishLanguage.IsChecked = settings.Language == "sv";
         foreach (var choice in EditorChoices.Children.OfType<RadioButton>()) choice.IsChecked = (string)choice.Tag == (editorId ?? "");
+        foreach (var choice in BrowserAddressChoices.Children.OfType<RadioButton>()) choice.IsChecked = (BrowserAddressMode)choice.Tag == browserAddress;
         ready = previous;
     }
     private void SyncAppearance()
@@ -144,6 +180,12 @@ public partial class SettingsWindow : Window
         if (actions.General(notify, tray)) { notifications = notify; closeToTray = tray; SavedHint.Text = successHint; }
         else { SyncGeneral(); SaveFailed(); }
     }
+    private void BrowserAddress_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!ready || sender is not RadioButton { IsChecked: true, Tag: BrowserAddressMode mode }) return;
+        if (actions.BrowserAddress?.Invoke(mode) == true) { browserAddress = mode; SavedHint.Text = successHint; }
+        else { SyncGeneral(); SaveFailed(); }
+    }
     private void Background_Changed(object sender, RoutedEventArgs e)
     {
         if (ready && sender is RadioButton { IsChecked: true, Tag: BackgroundMode mode }) TryAppearance(appearanceValue with { Mode = mode });
@@ -175,6 +217,7 @@ public partial class SettingsWindow : Window
                 toggle.Tag + " uses the open eye when visible");
         }
         var originalEditor = editorId; var originalNotifications = notifications; var originalTray = closeToTray; var originalAppearance = appearanceValue; var originalLanguage = settings.Language;
+        var originalBrowserAddress = browserAddress;
         try
         {
             SelectSection("general"); UpdateLayout();
@@ -183,6 +226,15 @@ public partial class SettingsWindow : Window
             check(settings.Language == "en", "English is selectable and saved without changing account connections");
             SwedishLanguage.IsChecked = true;
             check(settings.Language == "sv", "Swedish is selectable and saved for the next app start");
+            check(BrowserAddressChoices.Children.Count == 5, "Settings offers localhost, IPv4, IPv6, network IP and detected IP");
+            foreach (var choice in BrowserAddressChoices.Children.OfType<RadioButton>().Where(button => button.IsEnabled))
+            {
+                choice.IsChecked = true;
+                check(settings.BrowserAddress == (BrowserAddressMode)choice.Tag
+                    && BrowserAddressChoices.Children.OfType<RadioButton>().Count(button => button.IsChecked == true) == 1
+                    && Owner is MainWindow main && main.Ports.All(group => group.BrowserAddress == settings.BrowserAddress),
+                    "Browser address selection applies immediately to all port rows with exactly one selected choice");
+            }
             foreach (var choice in EditorChoices.Children.OfType<RadioButton>().Where(button => button.IsEnabled))
             {
                 choice.IsChecked = true;
@@ -211,6 +263,7 @@ public partial class SettingsWindow : Window
             EditorChoices.Children.OfType<RadioButton>().Single(button => (string)button.Tag == (originalEditor ?? "")).IsChecked = true;
             NotificationsToggle.IsChecked = originalNotifications; TrayToggle.IsChecked = originalTray;
             (originalLanguage == "sv" ? SwedishLanguage : EnglishLanguage).IsChecked = true;
+            BrowserAddressChoices.Children.OfType<RadioButton>().Single(button => (BrowserAddressMode)button.Tag == originalBrowserAddress).IsChecked = true;
             TryAppearance(originalAppearance); SelectSection("visibility");
         }
         var rejected = new SettingsWindow(new Settings(), new(_ => false, _ => false, (_, _) => false, _ => false, _ => { }), true);
@@ -221,11 +274,32 @@ public partial class SettingsWindow : Window
             rejected.BackgroundChoices.Children.OfType<RadioButton>().First().IsChecked = true;
             rejected.BorderToggle.IsChecked = false;
             rejected.SwedishLanguage.IsChecked = true;
+            foreach (var choice in rejected.BrowserAddressChoices.Children.OfType<RadioButton>().Skip(1))
+            {
+                choice.IsChecked = true;
+                check(rejected.BrowserAddressChoices.Children.OfType<RadioButton>().Single(button => button.IsChecked == true).Tag is BrowserAddressMode.Localhost,
+                    "A failed address save restores localhost for " + choice.Tag);
+            }
             check(rejected.OpenAiToggle.IsChecked == true && rejected.NotificationsToggle.IsChecked == true && rejected.TrayToggle.IsChecked == true
                 && rejected.EditorChoices.Children.OfType<RadioButton>().Single(button => button.IsChecked == true).Tag is ""
                 && rejected.BackgroundChoices.Children.OfType<RadioButton>().Single(button => button.IsChecked == true).Tag is BackgroundMode.Acrylic
-                && rejected.BorderToggle.IsChecked == true && rejected.EnglishLanguage.IsChecked == true, "Failed saves restore the previous eye, editor, language, general and appearance controls");
+                && rejected.BorderToggle.IsChecked == true && rejected.EnglishLanguage.IsChecked == true
+                && rejected.BrowserAddressChoices.Children.OfType<RadioButton>().Single(button => button.IsChecked == true).Tag is BrowserAddressMode.Localhost,
+                "Failed saves restore the previous eye, editor, language, browser address, general and appearance controls");
         }
         finally { rejected.Close(); }
+        var ipv6Available = false;
+        var unavailable = new SettingsWindow(new Settings(), new(_ => false, _ => false, (_, _) => false, _ => false, _ => { },
+            CanUseBrowserAddress: mode => mode is BrowserAddressMode.Localhost or BrowserAddressMode.DetectedIp || mode == BrowserAddressMode.Ipv6 && ipv6Available), false);
+        try
+        {
+            check(unavailable.BrowserAddressChoices.Children.OfType<RadioButton>().Where(button => button.IsEnabled)
+                .Select(button => (BrowserAddressMode)button.Tag).SequenceEqual([BrowserAddressMode.Localhost, BrowserAddressMode.DetectedIp]),
+                "Address choices without compatible services are disabled");
+            ipv6Available = true; unavailable.RefreshBrowserAddressAvailability();
+            check(unavailable.BrowserAddressChoices.Children.OfType<RadioButton>().Single(button => button.Tag is BrowserAddressMode.Ipv6).IsEnabled,
+                "Address choices become available when a compatible service appears");
+        }
+        finally { unavailable.Close(); }
     }
 }
